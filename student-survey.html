@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>강안교육 만족도 조사 — 2027학년도 정규반 1학기 2차</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root {
+    --bg: #f7f6f1;
+    --card: #ffffff;
+    --ink: #1a1a1a;
+    --ink-2: #4a4a48;
+    --ink-3: #8a8a84;
+    --line: #e6e3d8;
+    --line-2: #d4d1c4;
+    --accent: #1f3864;
+    --accent-soft: #e7ecf5;
+    --warn: #b8540a;
+    --good: #2d6a4f;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(31,56,100,.06);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: 'Pretendard', -apple-system, system-ui, sans-serif; font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  body { min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* 상단 진행률 */
+  .topbar { position: sticky; top: 0; z-index: 50; background: rgba(247,246,241,.92); backdrop-filter: saturate(140%) blur(8px); border-bottom: 1px solid var(--line); }
+  .topbar-inner { max-width: 760px; margin: 0 auto; padding: 14px 20px 10px; }
+  .brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .brand-name { font-weight: 700; letter-spacing: -0.02em; font-size: 15px; color: var(--ink); }
+  .brand-sub { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+  .progress { margin-top: 10px; height: 4px; background: var(--line); border-radius: 999px; overflow: hidden; }
+  .progress > span { display: block; height: 100%; background: var(--accent); width: 0%; transition: width .35s cubic-bezier(.2,.8,.2,1); }
+  .step-label { margin-top: 6px; font-size: 11.5px; color: var(--ink-3); letter-spacing: -0.01em; font-weight: 500; }
+
+  /* 메인 카드 */
+  main { flex: 1; max-width: 760px; width: 100%; margin: 0 auto; padding: 24px 20px 120px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 28px 24px; box-shadow: var(--shadow); }
+  .section-num { display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); background: var(--accent-soft); padding: 4px 9px; border-radius: 4px; }
+  .section-title { font-size: 22px; font-weight: 700; letter-spacing: -0.025em; margin: 12px 0 6px; color: var(--ink); }
+  .section-desc { font-size: 14px; color: var(--ink-2); margin-bottom: 20px; line-height: 1.6; }
+  .section-desc.notice { background: #fff8ec; border: 1px solid #f0e0b8; padding: 12px 14px; border-radius: 8px; }
+
+  /* 문항 */
+  .q { padding: 18px 0; border-top: 1px solid var(--line); }
+  .q:first-of-type { border-top: 0; padding-top: 0; }
+  .q-label { font-size: 15.5px; font-weight: 600; color: var(--ink); margin-bottom: 12px; line-height: 1.5; letter-spacing: -0.015em; }
+  .q-num { color: var(--ink-3); font-weight: 500; margin-right: 4px; }
+
+  /* 5점 척도 */
+  .scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .scale label { display: flex; align-items: center; justify-content: center; min-height: 56px; padding: 10px 6px; border: 1px solid var(--line-2); border-radius: 8px; background: #fcfcf9; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--ink-2); text-align: center; line-height: 1.25; transition: all .15s; user-select: none; letter-spacing: -0.01em; }
+  .scale label:hover { border-color: var(--accent); }
+  .scale input { position: absolute; opacity: 0; pointer-events: none; }
+  .scale input:checked + label { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  .scale-wrap { position: relative; }
+
+  /* 라디오 일반 (Type, 성별 등) */
+  .radios { display: flex; flex-wrap: wrap; gap: 8px; }
+  .radios label { padding: 10px 16px; border: 1px solid var(--line-2); border-radius: 8px; background: #fcfcf9; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--ink-2); transition: all .15s; }
+  .radios label:hover { border-color: var(--accent); }
+  .radios input { position: absolute; opacity: 0; pointer-events: none; }
+  .radios input:checked + label { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  .radios.stack label { width: 100%; }
+
+  /* select & input */
+  select, .input { width: 100%; padding: 12px 14px; font-size: 15px; font-family: inherit; border: 1px solid var(--line-2); border-radius: 8px; background: #fcfcf9; color: var(--ink); transition: border-color .15s; -webkit-appearance: none; appearance: none; }
+  select { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1L6 6L11 1' stroke='%234a4a48' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+  select:focus, .input:focus { outline: none; border-color: var(--accent); }
+  textarea.input { min-height: 88px; resize: vertical; line-height: 1.55; }
+
+  .field { margin-bottom: 16px; }
+  .field-label { display: block; font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+  .field-help { font-size: 12.5px; color: var(--ink-3); margin-top: 6px; }
+
+  /* 버튼 영역 */
+  .actions { display: flex; gap: 10px; margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
+  .btn { flex: 1; padding: 14px 20px; font-size: 15px; font-weight: 600; font-family: inherit; border-radius: 8px; cursor: pointer; transition: all .15s; letter-spacing: -0.01em; min-height: 50px; }
+  .btn-primary { background: var(--accent); color: #fff; border: 1px solid var(--accent); }
+  .btn-primary:hover { background: #16294a; }
+  .btn-primary:disabled { background: var(--line-2); border-color: var(--line-2); color: #fff; cursor: not-allowed; }
+  .btn-secondary { background: #fff; color: var(--ink-2); border: 1px solid var(--line-2); }
+  .btn-secondary:hover { border-color: var(--ink-3); }
+
+  /* 시작 화면 */
+  .welcome .section-title { font-size: 26px; }
+  .welcome-quote { background: #faf8f1; border-left: 3px solid var(--accent); padding: 16px 18px; font-size: 14.5px; color: var(--ink-2); line-height: 1.7; margin: 18px 0 24px; border-radius: 4px; }
+  .welcome .field { margin-bottom: 14px; }
+
+  /* 완료 화면 */
+  .done-icon { width: 48px; height: 48px; margin: 0 auto 18px; border: 2px solid var(--good); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .done-icon::after { content: ''; width: 18px; height: 9px; border-left: 2px solid var(--good); border-bottom: 2px solid var(--good); transform: rotate(-45deg) translate(2px, -2px); }
+  .done-card { text-align: center; }
+  .done-quote { background: #f1f7f3; padding: 18px; border-radius: 8px; font-size: 14.5px; color: var(--ink-2); line-height: 1.7; margin: 20px 0; }
+  .done-meta { font-size: 12.5px; color: var(--ink-3); margin-top: 16px; }
+
+  /* 에러 */
+  .err { color: var(--warn); font-size: 12.5px; margin-top: 6px; }
+
+  /* 반응형 */
+  @media (max-width: 540px) {
+    .card { padding: 22px 18px; border-radius: 8px; }
+    .section-title { font-size: 19px; }
+    .scale { grid-template-columns: 1fr; gap: 5px; }
+    .scale label { min-height: 44px; flex-direction: row; justify-content: flex-start; padding-left: 14px; font-size: 14px; }
+    .scale label::before { content: ''; width: 16px; height: 16px; border: 1.5px solid var(--line-2); border-radius: 50%; margin-right: 10px; flex-shrink: 0; transition: all .15s; }
+    .scale input:checked + label::before { border-color: #fff; background: #fff; box-shadow: inset 0 0 0 3px var(--accent); }
+    main { padding: 16px 12px 100px; }
+  }
+
+  /* 미리보기(개발자용) */
+  .preview-toggle { position: fixed; right: 14px; bottom: 14px; z-index: 40; background: rgba(0,0,0,.78); color: #fff; border: 0; font-size: 11.5px; padding: 8px 12px; border-radius: 999px; font-family: inherit; cursor: pointer; opacity: .6; }
+  .preview-toggle:hover { opacity: 1; }
+  .preview { position: fixed; right: 14px; bottom: 56px; z-index: 41; max-width: 360px; max-height: 60vh; overflow: auto; background: #1a1a1a; color: #d8d8d8; padding: 14px; border-radius: 8px; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; line-height: 1.5; display: none; white-space: pre-wrap; }
+  .preview.on { display: block; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-name">강안교육 만족도 조사</span>
+      <span class="brand-sub">2027학년도 정규반 1학기 2차</span>
+    </div>
+    <div class="progress"><span id="bar"></span></div>
+    <div class="step-label" id="stepLabel">시작 전</div>
+  </div>
+</div>
+
+<main id="app"></main>
+
+<button class="preview-toggle" onclick="document.getElementById('preview').classList.toggle('on')">▤ 데이터 미리보기</button>
+<div class="preview" id="preview">아직 응답 없음</div>
+
+<script>
+/* ============================================================
+ *  강안교육 만족도 조사 — 학생 응시 페이지 (시제품)
+ *  실제 운영 시: 강의실/담임/학사 마스터 데이터는 Firestore에서 로드
+ *               제출은 fetch() → Firestore 'responses' 컬렉션
+ * ============================================================ */
+
+// 5점 척도 라벨
+const SCALE = ['매우 그렇다', '그렇다', '보통', '아니다', '매우 아니다'];
+
+// 시제품 더미 마스터 데이터 (실제 운영시 DB 로드)
+const ROOMS = {
+  국수영_type1: ['(월) 302호 백종수','(월) 303호 김학림','(월) 304호 황범희','(월) 305호 전종현'],
+  국수영_type2: ['(월) 401호 이민호','(월) 402호 신현철','(월) 403호 임명훈','(월) 404호 김종훈'],
+  탐구: ['(화) 17:00 305호 백종수 - 생명과학','(화) 18:00 305호 김학림 - 지구과학','(수) 17:00 304호 황범희 - 화학','(수) 18:00 304호 전종현 - 물리','해당 없음'],
+  논술: ['연세대 논술 - 김교수','고려대 논술 - 이교수','서울대 정시 면접 - 박교수','해당 없음'],
+  특강: ['미적분 심화특강','확통 빈출유형','영어 1등급특강','국어 비문학','해당 없음']
+};
+const HOMEROOMS = ['전종현','김학림','황범희','백종수','조영신','이민호','신현철'];
+const HAKSAS = ['강남학사','교대학사','대치일타학사','명문학사','베스트학사','아카데미학사','에이원학사','이편한레지던스','정효학사','케일리학사','태원학사','훼미리학사','해당 없음'];
+
+// 8개 섹션 + 시작/완료 = 10단계
+const STEPS = [
+  { id: 'welcome', label: '시작' },
+  { id: 'basic', label: '기본정보' },
+  { id: 'office', label: '교무운영' },
+  { id: 'class_main', label: '수업 - 국수영' },
+  { id: 'class_t1', label: '수업 - 탐구1' },
+  { id: 'class_t2', label: '수업 - 탐구2' },
+  { id: 'class_essay', label: '수업 - 논술' },
+  { id: 'class_special', label: '수업 - 특강' },
+  { id: 'homeroom', label: '담임상담' },
+  { id: 'daily', label: '매일깨기' },
+  { id: 'meal', label: '급식' },
+  { id: 'dorm', label: '학사 운영' },
+  { id: 'etc', label: '기타' },
+  { id: 'done', label: '제출 완료' }
+];
+
+let cur = 0;
+const data = { meta: {}, answers: {} };
+
+// === 렌더 ===
+function render() {
+  const step = STEPS[cur];
+  const el = document.getElementById('app');
+  el.innerHTML = STEP_RENDERERS[step.id]();
+  document.getElementById('bar').style.width = ((cur) / (STEPS.length - 1) * 100) + '%';
+  document.getElementById('stepLabel').textContent = `${cur === 0 ? '' : cur + ' / ' + (STEPS.length - 2) + ' · '}${step.label}`;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  updatePreview();
+}
+
+function next() { if (cur < STEPS.length - 1) { cur++; render(); } }
+function prev() { if (cur > 0) { cur--; render(); } }
+function go(i) { cur = i; render(); }
+
+function updatePreview() {
+  document.getElementById('preview').textContent = JSON.stringify(data, null, 2);
+}
+
+// === 헬퍼 ===
+function scaleHtml(name, qLabel, qNum) {
+  return `
+    <div class="q" data-q="${name}">
+      <div class="q-label"><span class="q-num">${qNum})</span>${qLabel}</div>
+      <div class="scale-wrap"><div class="scale">
+        ${SCALE.map((s, i) => {
+          const v = 5 - i;
+          const id = `${name}_${v}`;
+          const checked = (data.answers[name] === v) ? 'checked' : '';
+          return `<input type="radio" name="${name}" id="${id}" value="${v}" ${checked} onchange="setAnswer('${name}', ${v})"><label for="${id}">${s}</label>`;
+        }).join('')}
+      </div></div>
+    </div>`;
+}
+
+function freeHtml(name, label) {
+  const v = data.answers[name] || '';
+  return `
+    <div class="q" data-q="${name}">
+      <div class="q-label">${label} <span style="font-size:12px;color:var(--ink-3);font-weight:500;">(자유응답)</span></div>
+      <textarea class="input" name="${name}" placeholder="자유롭게 작성해 주세요. 작성하지 않으셔도 됩니다." oninput="setAnswer('${name}', this.value)">${v}</textarea>
+    </div>`;
+}
+
+function selectHtml(name, label, options, help = '') {
+  const v = data.answers[name] || '';
+  return `
+    <div class="field">
+      <label class="field-label">${label}</label>
+      <select onchange="setAnswer('${name}', this.value)">
+        <option value="">선택하세요</option>
+        ${options.map(o => `<option value="${o}" ${v === o ? 'selected' : ''}>${o}</option>`).join('')}
+      </select>
+      ${help ? `<div class="field-help">${help}</div>` : ''}
+    </div>`;
+}
+
+function setAnswer(k, v) {
+  data.answers[k] = v;
+  updatePreview();
+}
+
+function setMeta(k, v) {
+  data.meta[k] = v;
+  // basic 단계에서 다음 버튼 활성화 동기화
+  if (STEPS[cur].id === 'basic') {
+    const btn = document.querySelector('.btn-primary');
+    if (btn) btn.disabled = !data.meta.type || !data.meta.gender;
+  }
+  updatePreview();
+}
+
+function actions(opts = {}) {
+  const { showPrev = true, nextLabel = '다음', nextDisabled = false, onNext = 'next()' } = opts;
+  return `
+    <div class="actions">
+      ${showPrev ? `<button class="btn btn-secondary" onclick="prev()">이전</button>` : ''}
+      <button class="btn btn-primary" onclick="${onNext}" ${nextDisabled ? 'disabled' : ''}>${nextLabel}</button>
+    </div>`;
+}
+
+// === 단계별 렌더러 ===
+const STEP_RENDERERS = {
+
+  // 0. 시작
+  welcome: () => `
+    <div class="card welcome">
+      <span class="section-num">START</span>
+      <h1 class="section-title">2027학년도 정규반 1학기 2차 만족도 조사</h1>
+      <div class="welcome-quote">
+        본 설문은 강안교육 정규반 과정을 수강하고 있는 재원생들의 귀중한 의견을 듣고자 마련했습니다.<br>
+        여러분이 주신 소중한 의견을 바탕으로 강안교육은 더 나은 학습 환경과 면학분위기 조성을 위해 최선을 다하겠습니다.<br>
+        감사합니다.
+      </div>
+
+      <div class="field">
+        <label class="field-label">이름</label>
+        <input class="input" type="text" placeholder="홍길동" value="${data.meta.name || ''}" oninput="setMeta('name', this.value); document.getElementById('startBtn').disabled = !(data.meta.name && data.meta.studentId);">
+      </div>
+      <div class="field">
+        <label class="field-label">학번</label>
+        <input class="input" type="text" inputmode="numeric" placeholder="2027001" value="${data.meta.studentId || ''}" oninput="setMeta('studentId', this.value); document.getElementById('startBtn').disabled = !(data.meta.name && data.meta.studentId);">
+        <div class="field-help">이코딩 로그인 학번과 동일합니다. 본인 이름으로만 응시 가능합니다.</div>
+      </div>
+
+      <div class="actions" style="border-top:0; padding-top: 8px;">
+        <button id="startBtn" class="btn btn-primary" onclick="next()" ${(data.meta.name && data.meta.studentId) ? '' : 'disabled'}>설문 시작</button>
+      </div>
+      <p style="font-size:12px;color:var(--ink-3);margin-top:14px;text-align:center;">총 8개 섹션 · 약 5–8분 소요</p>
+    </div>`,
+
+  // 1. 기본정보
+  basic: () => `
+    <div class="card">
+      <span class="section-num">SECTION 1</span>
+      <h2 class="section-title">기본정보</h2>
+      <p class="section-desc">해당하는 사항을 선택해 주십시오.</p>
+
+      <div class="field">
+        <label class="field-label">1) 해당하는 타입을 선택해 주십시오</label>
+        <div class="radios stack">
+          ${[
+            ['Type 1','Type 1 — 월요일에 수학(미적분/확률과 통계)을 수강'],
+            ['Type 2','Type 2 — 월요일에 국어 또는 영어를 수강']
+          ].map(([v,l],i) => `
+            <input type="radio" name="type" id="type_${i}" value="${v}" ${data.meta.type===v?'checked':''} onchange="setMeta('type','${v}')"><label for="type_${i}">${l}</label>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">2) 성별을 선택해 주십시오</label>
+        <div class="radios">
+          ${['남자','여자'].map((v,i) => `
+            <input type="radio" name="gender" id="gen_${i}" value="${v}" ${data.meta.gender===v?'checked':''} onchange="setMeta('gender','${v}')"><label for="gen_${i}">${v}</label>
+          `).join('')}
+        </div>
+      </div>
+
+      ${actions({ nextDisabled: !data.meta.type || !data.meta.gender })}
+    </div>`,
+
+  // 2. 교무운영
+  office: () => `
+    <div class="card">
+      <span class="section-num">SECTION 2</span>
+      <h2 class="section-title">교무운영</h2>
+      <p class="section-desc">출결관리 및 면학분위기 관련 질문입니다.</p>
+      ${scaleHtml('office_q1','아침출결 및 지각관리가 잘 진행되었다고 생각하십니까?','1')}
+      ${scaleHtml('office_q2','매일깨기(새벽깨기 포함) 미응시자 관리가 누락 없이 잘 진행되었다고 생각하십니까?','2')}
+      ${scaleHtml('office_q3','재원생 간 대화금지 관리를 통해, 강의실 내 정숙한 면학분위기가 조성되었다고 생각하십니까?','3')}
+      ${scaleHtml('office_q4','재원생에 대한 졸음금지 관리가 적절하게 이루어졌습니까?','4')}
+      ${scaleHtml('office_q5','교무지원실 등에서 교직원의 안내 및 지도가 잘 진행되었다고 생각하십니까?','5')}
+      ${freeHtml('office_free','6) 학습관리 및 생활관리에 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?')}
+      ${actions()}
+    </div>`,
+
+  // 3. 수업영역 - 국수영
+  class_main: () => {
+    const opts = data.meta.type === 'Type 1' ? ROOMS.국수영_type1 : ROOMS.국수영_type2;
+    return `
+    <div class="card">
+      <span class="section-num">SECTION 3</span>
+      <h2 class="section-title">수업영역 — 국어/수학/영어</h2>
+      <p class="section-desc">수업이 진행되는 강의실을 선택해 주십시오. (요일-강의실-선생님 순)</p>
+      ${selectHtml('class_main_room','강의실', opts, `${data.meta.type} 학생 기준으로 노출됩니다.`)}
+      ${scaleHtml('class_main_q1','선생님의 전반적인 수업운영에 만족하십니까?','1')}
+      ${scaleHtml('class_main_q2','선생님은 질문에 성실히 답변해주셨습니까?','2')}
+      ${scaleHtml('class_main_q3','P/F테스트가 학습 성취도 확인에 도움이 되었습니까?','3')}
+      ${scaleHtml('class_main_q4','선생님의 과제 검사 및 관리에 만족하십니까?','4')}
+      ${scaleHtml('class_main_q5','선생님은 나의 학습상황에 관심을 갖고 공부법이나 약점에 대한 학습상담을 잘 해주셨습니까?','5')}
+      ${scaleHtml('class_main_q6','교재에 만족하십니까?','6')}
+      ${scaleHtml('class_main_q7','피드백 선생님의 질문답변에 만족하십니까?','7')}
+      ${freeHtml('class_main_free','8) (수업/피드백/교재) 영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?')}
+      ${actions()}
+    </div>`;
+  },
+
+  // 4. 탐구1
+  class_t1: () => `
+    <div class="card">
+      <span class="section-num">SECTION 4</span>
+      <h2 class="section-title">수업영역 — 탐구1</h2>
+      <p class="section-desc">탐구영역은 선택한 과목수에 따라 탐구1과 탐구2로 나뉘어 있습니다. 수업이 진행되는 강의실을 선택해 주십시오.</p>
+      ${selectHtml('class_t1_room','강의실 (요일-시간-강의실-선생님-과목명)', ROOMS.탐구)}
+      ${scaleHtml('class_t1_q1','선생님의 전반적인 수업운영에 만족하십니까?','1')}
+      ${scaleHtml('class_t1_q2','선생님은 질문에 성실히 답변해주셨습니까?','2')}
+      ${scaleHtml('class_t1_q3','P/F테스트가 학습 성취도 확인에 도움이 되었습니까?','3')}
+      ${scaleHtml('class_t1_q4','선생님의 과제 검사 및 관리에 만족하십니까?','4')}
+      ${scaleHtml('class_t1_q5','새벽깨기 문제를 포함하여, 교재에 만족하십니까?','5')}
+      ${freeHtml('class_t1_free','6) (수업/교재) 영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?')}
+      ${actions()}
+    </div>`,
+
+  // 5. 탐구2
+  class_t2: () => `
+    <div class="card">
+      <span class="section-num">SECTION 4-2</span>
+      <h2 class="section-title">수업영역 — 탐구2</h2>
+      <p class="section-desc notice">탐구2 과목을 수강하지 않는 경우 강의실에서 <b>'해당 없음'</b>을 선택하고 다음으로 넘어가 주십시오.</p>
+      ${selectHtml('class_t2_room','강의실 (요일-시간-강의실-선생님-과목명)', ROOMS.탐구)}
+      ${data.answers.class_t2_room && data.answers.class_t2_room !== '해당 없음' ? `
+        ${scaleHtml('class_t2_q1','선생님의 전반적인 수업운영에 만족하십니까?','1')}
+        ${scaleHtml('class_t2_q2','선생님은 질문에 성실히 답변해주셨습니까?','2')}
+        ${scaleHtml('class_t2_q3','P/F테스트가 학습 성취도 확인에 도움이 되었습니까?','3')}
+        ${scaleHtml('class_t2_q4','선생님의 과제 검사 및 관리에 만족하십니까?','4')}
+        ${scaleHtml('class_t2_q5','새벽깨기 문제를 포함하여, 교재에 만족하십니까?','5')}
+        ${freeHtml('class_t2_free','6) (수업/교재) 영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?')}
+      ` : ''}
+      ${actions()}
+    </div>`,
+
+  // 6. 논술
+  class_essay: () => `
+    <div class="card">
+      <span class="section-num">SECTION 4-3</span>
+      <h2 class="section-title">수업영역 — 논술</h2>
+      <p class="section-desc notice">현재 논술 수업을 수강하고 있는 재원생 대상입니다. 수강하지 않는 경우 <b>'해당 없음'</b>을 선택해 주십시오.</p>
+      ${selectHtml('class_essay_room','수강 중인 논술 강의', ROOMS.논술)}
+      ${data.answers.class_essay_room && data.answers.class_essay_room !== '해당 없음' ? `
+        ${scaleHtml('class_essay_q1','선생님의 전반적인 수업운영에 만족하십니까?','1')}
+        ${scaleHtml('class_essay_q2','선생님은 수업내용을 효과적으로 전달하셨습니까?','2')}
+        ${scaleHtml('class_essay_q3','수업의 난이도는 적절했습니까?','3')}
+        ${scaleHtml('class_essay_q4','선생님의 첨삭 피드백에 만족하십니까?','4')}
+        ${scaleHtml('class_essay_q5','선생님은 질문에 성실히 답변해주셨습니까?','5')}
+        ${freeHtml('class_essay_free','6) 수업영역(논술)에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?')}
+      ` : ''}
+      ${actions()}
+    </div>`,
+
+  // 7. 특강
+  class_special: () => `
+    <div class="card">
+      <span class="section-num">SECTION 4-4</span>
+      <h2 class="section-title">수업영역 — 특강</h2>
+      <p class="section-desc notice">특강 영역은 현재 특강을 수강하고 있거나 수강이력이 있는 재원생 대상입니다. 해당 없으면 <b>'해당 없음'</b>을 선택해 주십시오.<br><span style="color:var(--ink-3); font-size: 13px;">※ 실제 운영 시 수강한 특강 개수만큼 섹션이 반복 노출됩니다.</span></p>
+      ${selectHtml('class_special_room','수강 중인 특강', ROOMS.특강)}
+      ${data.answers.class_special_room && data.answers.class_special_room !== '해당 없음' ? `
+        ${scaleHtml('class_special_q1','선생님의 전반적인 수업운영에 만족하십니까?','1')}
+        ${scaleHtml('class_special_q2','특강 수업이 수강생의 부족했던 부분을 보완하는 데 도움이 되었습니까?','2')}
+        ${freeHtml('class_special_free','3) 수업영역(특강)에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?')}
+      ` : ''}
+      ${actions()}
+    </div>`,
+
+  // 8. 담임상담
+  homeroom: () => `
+    <div class="card">
+      <span class="section-num">SECTION 5</span>
+      <h2 class="section-title">담임상담</h2>
+      <p class="section-desc">담임선생님을 선택해 주십시오.</p>
+      ${selectHtml('homeroom_teacher','담임선생님', HOMEROOMS)}
+      ${scaleHtml('homeroom_q1','담임상담이 성적관리에 도움이 되었습니까?','1')}
+      ${scaleHtml('homeroom_q2','담임상담이 정서관리에 도움이 되었습니까?','2')}
+      ${freeHtml('homeroom_free','3) 담임상담에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?')}
+      ${actions()}
+    </div>`,
+
+  // 9. 매일깨기
+  daily: () => `
+    <div class="card">
+      <span class="section-num">SECTION 6</span>
+      <h2 class="section-title">매일깨기</h2>
+      ${scaleHtml('daily_q1','국어매일깨기 문제풀이 학습이 학업에 도움이 되었습니까?','1')}
+      ${scaleHtml('daily_q2','수학매일깨기 문제풀이 학습이 학업에 도움이 되었습니까?','2')}
+      ${scaleHtml('daily_q3','영어매일깨기 어휘 학습이 학업에 도움이 되었습니까?','3')}
+      ${scaleHtml('daily_q4','주간깨기를 통한 반복 학습이 학업에 도움이 되었습니까?','4')}
+      ${freeHtml('daily_free','5) 매일깨기/주간깨기에 관하여 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?')}
+      ${actions()}
+    </div>`,
+
+  // 10. 급식
+  meal: () => `
+    <div class="card">
+      <span class="section-num">SECTION 7</span>
+      <h2 class="section-title">급식</h2>
+      ${scaleHtml('meal_q1','급식 맛에 만족하십니까?','1')}
+      ${scaleHtml('meal_q2','급식 메뉴에 만족하십니까?','2')}
+      ${scaleHtml('meal_q3','급식 양에 만족하십니까?','3')}
+      ${scaleHtml('meal_q4','급식 위생에 만족하십니까?','4')}
+      ${freeHtml('meal_free','5) 급식에 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?')}
+      ${actions()}
+    </div>`,
+
+  // 11. 학사 운영
+  dorm: () => {
+    const showShuttle2 = ['이편한레지던스','대치일타학사'].includes(data.answers.dorm_name);
+    const isOptOut = data.answers.dorm_name === '해당 없음';
+    return `
+    <div class="card">
+      <span class="section-num">SECTION 8</span>
+      <h2 class="section-title">학사 운영 관리</h2>
+      <p class="section-desc notice">기숙사 학생 대상 설문입니다. 통학생이거나 항목 외 학사 이용자는 <b>'해당 없음'</b>을 선택해 주십시오.</p>
+      ${selectHtml('dorm_name','학사', HAKSAS)}
+      ${data.answers.dorm_name && !isOptOut ? `
+        ${scaleHtml('dorm_q1','아침식사에 만족하십니까?','1')}
+        ${scaleHtml('dorm_q2','기상 관리가 잘 이루어졌다고 생각하십니까?','2')}
+        ${scaleHtml('dorm_q3a','셔틀 탑승부터 하차까지 정숙한 분위기가 유지되었습니까?','3-①')}
+        ${showShuttle2 ? scaleHtml('dorm_q3b','학사 출발부터 학원 도착까지 정숙한 분위기가 유지되었습니까?','3-②') : ''}
+        ${scaleHtml('dorm_q4','휴대폰 및 전자기기 수거와 관리에 만족하십니까?','4')}
+        ${scaleHtml('dorm_q5','학사 복귀 후 대화 및 취침 전까지의 관리에 만족하십니까?','5')}
+        ${scaleHtml('dorm_q6','학사 내 청소와 빨래에 대해 만족하십니까?','6')}
+        ${freeHtml('dorm_free','7) 학사 운영에 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?')}
+      ` : ''}
+      ${actions()}
+    </div>`;
+  },
+
+  // 12. 기타
+  etc: () => `
+    <div class="card">
+      <span class="section-num">SECTION 9</span>
+      <h2 class="section-title">기타</h2>
+      <p class="section-desc">기타 건의사항이 있으시면 적어주십시오.</p>
+      ${freeHtml('etc_free','기타 건의사항')}
+      ${actions({ nextLabel: '제출하기 →', onNext: 'submit()' })}
+    </div>`,
+
+  // 13. 완료
+  done: () => `
+    <div class="card done-card">
+      <div class="done-icon"></div>
+      <h2 class="section-title" style="margin-top:0;">제출이 완료되었습니다</h2>
+      <div class="done-quote">
+        강안교육 정규반 1학기 2차 만족도 조사에 참여해주셔서 감사합니다.<br>
+        강안교육은 여러분의 소중한 의견 반영을 통해 보다 나은 학습 환경과 면학 분위기를 만들기 위해 노력하겠습니다.<br>
+        앞으로도 학습 과정 전반에 걸쳐 지속적으로 관리하고 지원하며, 여러분이 목표한 결과에 도달할 수 있도록 끝까지 함께 하겠습니다.<br>
+        감사합니다.
+      </div>
+      <div class="done-meta">
+        제출 시각 ${new Date(data.meta.submittedAt).toLocaleString('ko-KR')}<br>
+        응시자 ${data.meta.name} (${data.meta.studentId})
+      </div>
+    </div>`
+};
+
+// 응시 키 (분기/회차별로 분리)
+const SURVEY_KEY = 'kangan_survey_done_2027-1-2'; // 2027학년도 1학기 2차
+
+function submit() {
+  data.meta.submittedAt = new Date().toISOString();
+  console.log('[제출 데이터]', data);
+  try {
+    localStorage.setItem('lastSurvey_' + data.meta.studentId, JSON.stringify(data));
+    // 1회 응시 마킹
+    localStorage.setItem(SURVEY_KEY, JSON.stringify({
+      name: data.meta.name,
+      studentId: data.meta.studentId,
+      submittedAt: data.meta.submittedAt
+    }));
+  } catch(e) {}
+  cur = STEPS.length - 1;
+  render();
+}
+
+// 페이지 로드 시 응시 완료 여부 확인
+(function checkAlreadySubmitted() {
+  try {
+    const done = localStorage.getItem(SURVEY_KEY);
+    if (done) {
+      const info = JSON.parse(done);
+      const submittedDate = new Date(info.submittedAt).toLocaleString('ko-KR');
+      // 응시 완료 안내 화면
+      document.body.innerHTML = `
+        <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f7f6f1;font-family:'Pretendard',-apple-system,system-ui,sans-serif;">
+          <div style="background:#fff;border:1px solid #e6e3d8;border-radius:12px;padding:36px 32px;max-width:460px;width:100%;box-shadow:0 6px 24px rgba(0,0,0,0.04);text-align:center;">
+            <div style="font-size:48px;margin-bottom:12px;">✓</div>
+            <h1 style="font-size:22px;font-weight:700;letter-spacing:-0.025em;color:#1a1a1a;margin:0 0 8px;">이미 응시하셨습니다</h1>
+            <p style="font-size:14px;color:#8a8a84;margin:0 0 22px;line-height:1.6;">
+              ${info.name} 학생 (${info.studentId})<br>
+              제출 시각: ${submittedDate}
+            </p>
+            <div style="background:#f7f6f1;border-radius:8px;padding:14px 16px;font-size:13px;color:#4a4a48;line-height:1.55;text-align:left;margin-bottom:18px;">
+              본 설문은 1인 1회만 응시 가능합니다. 응답을 수정하고 싶으시면 담임선생님께 문의해주세요.
+            </div>
+            <button onclick="if(confirm('응시 기록을 초기화하고 다시 응시하시겠습니까? (시제품 테스트용)')) { localStorage.removeItem('${SURVEY_KEY}'); location.reload(); }" style="background:transparent;border:1px solid #d4d1c4;color:#8a8a84;padding:8px 16px;font-size:12px;border-radius:6px;cursor:pointer;font-family:inherit;">
+              [시제품] 다시 응시하기
+            </button>
+          </div>
+        </div>
+      `;
+      return; // 더 이상 진행 안 함
+    }
+  } catch(e) {}
+})();
+
+render();
+</script>
+</body>
+</html>
