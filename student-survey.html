@@ -272,18 +272,13 @@ const STEP_RENDERERS = {
         감사합니다.
       </div>
 
-      <div class="field">
-        <label class="field-label">이름</label>
-        <input class="input" type="text" placeholder="홍길동" value="${data.meta.name || ''}" oninput="setMeta('name', this.value); document.getElementById('startBtn').disabled = !(data.meta.name && data.meta.studentId);">
-      </div>
-      <div class="field">
-        <label class="field-label">학번</label>
-        <input class="input" type="text" inputmode="numeric" placeholder="2027001" value="${data.meta.studentId || ''}" oninput="setMeta('studentId', this.value); document.getElementById('startBtn').disabled = !(data.meta.name && data.meta.studentId);">
-        <div class="field-help">이코딩 로그인 학번과 동일합니다. 본인 이름으로만 응시 가능합니다.</div>
+      <div style="margin: 20px 0; padding: 14px 16px; background: #eff6ff; border-left: 3px solid #2563eb; border-radius: 6px; font-size: 13px; color: #1e40af; line-height: 1.6;">
+        🔒 <b>익명 설문입니다</b><br>
+        이름과 학번을 받지 않습니다. 솔직하게 응답해 주세요.
       </div>
 
       <div class="actions" style="border-top:0; padding-top: 8px;">
-        <button id="startBtn" class="btn btn-primary" onclick="next()" ${(data.meta.name && data.meta.studentId) ? '' : 'disabled'}>설문 시작</button>
+        <button id="startBtn" class="btn btn-primary" onclick="next()">설문 시작</button>
       </div>
       <p style="font-size:12px;color:var(--ink-3);margin-top:14px;text-align:center;">총 8개 섹션 · 약 5–8분 소요</p>
     </div>`,
@@ -508,7 +503,7 @@ const STEP_RENDERERS = {
       </div>
       <div class="done-meta">
         제출 시각 ${new Date(data.meta.submittedAt).toLocaleString('ko-KR')}<br>
-        응시자 ${data.meta.name} (${data.meta.studentId})
+        🔒 익명 응답
       </div>
     </div>`
 };
@@ -516,24 +511,124 @@ const STEP_RENDERERS = {
 // 응시 키 (분기/회차별로 분리)
 const SURVEY_KEY = 'kangan_survey_done_2027-1-2'; // 2027학년도 1학기 2차
 
+// ============================================================
+// 학생 응답 → raw 엑셀 130열 양식 변환
+// raw 엑셀 보스가 받던 그대로 저장 (관리자 페이지가 같은 양식으로 읽음)
+// ============================================================
+window.__buildRawRow = function(d) {
+  const a = d.answers || {};
+  const m = d.meta || {};
+  const row = {};
+  row['타임스탬프'] = m.submittedAt || new Date().toISOString();
+  row['1) 해당하는 타입을 선택해 주십시오.'] = m.type || '';
+  row['2) 성별을 선택해 주십시오.'] = m.gender || '';
+  // 교무 1부 (Col 4-9)
+  row['1) 아침출결 및 지각관리가 잘 진행되었다고 생각하십니까?'] = a.office_q1 || '';
+  row['2) 매일깨기(새벽깨기 포함) 미응시자 관리가 누락 없이 잘 진행되었다고 생각하십니까?'] = a.office_q2 || '';
+  row['3) 재원생 간 대화금지 관리를 통해, 강의실 내 정숙한 면학분위기가 조성되었다고 생각하십니까?'] = a.office_q3 || '';
+  row['4) 재원생에 대한 졸음금지 관리가 적절하게 이루어졌습니까?'] = a.office_q4 || '';
+  row['5) 교무지원실 등에서 교직원의 안내 및 지도가 잘 진행되었다고 생각하십니까?'] = a.office_q5 || '';
+  row['6) 학습관리 및 생활관리에 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?'] = a.office_free || '';
+  // 교무 2부 (Col 10-15) - 학생 설문 화면에 없으면 빈값
+  row['1) 아침출결 및 지각관리가 잘 진행되었다고 생각하십니까? 2'] = a.office2_q1 || '';
+  row['2) 매일깨기(새벽깨기 포함) 미응시자 관리가 누락 없이 잘 진행되었다고 생각하십니까? 2'] = a.office2_q2 || '';
+  row['3) 재원생 간 대화금지 관리를 통해, 강의실 내 정숙한 면학분위기가 조성되었다고 생각하십니까? 2'] = a.office2_q3 || '';
+  row['4) 재원생에 대한 졸음금지 관리가 적절하게 이루어졌습니까? 2'] = a.office2_q4 || '';
+  row['5) 교무지원실 등에서 직원의 안내 및 지도가 잘 진행되었다고 생각하십니까?'] = a.office2_q5 || '';
+  row['6) 학습관리 및 생활관리에 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 2'] = a.office2_free || '';
+  // 수업 - 국수영 (Col 16-24) — 강의실/요일 기반 강사 식별
+  row['수업이 진행되는 강의실을 선택해 주십시오.'] = a.class_main_room || '';
+  row['1) 선생님의 전반적인 수업 운영에 만족하십니까?'] = a.class_main_q1 || '';
+  row['2) 선생님은 질문에 성실히 답변해주셨습니까?'] = a.class_main_q2 || '';
+  row['3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까?'] = a.class_main_q3 || '';
+  row['4) 선생님의 과제 검사 및 관리에 만족하십니까?'] = a.class_main_q4 || '';
+  row['5) 선생님은 나의 학습상황에 관심을 갖고 공부법이나 약점에 대한 학습상담을 잘 해주셨습니까?'] = a.class_main_q5 || '';
+  row['6) 교재에 만족하십니까?'] = a.class_main_q6 || '';
+  row['7) 피드백 선생님의 질문답변에 만족하십니까?'] = a.class_main_q7 || '';
+  row['8) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?'] = a.class_main_free || '';
+  // 탐구1 (Col 25-33)
+  row['수업이 진행되는 강의실을 선택해 주십시오. 2'] = a.class_t1_room || '';
+  row['1) 선생님의 전반적인 수업 운영에 만족하십니까? 2'] = a.class_t1_q1 || '';
+  row['2) 선생님은 질문에 성실히 답변해주셨습니까? 2'] = a.class_t1_q2 || '';
+  row['3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까? 2'] = a.class_t1_q3 || '';
+  row['4) 선생님의 과제 검사 및 관리에 만족하십니까? 2'] = a.class_t1_q4 || '';
+  row['5) 선생님은 나의 학습상황에 관심을 갖고 공부법이나 약점에 대한 학습상담을 잘 해주셨습니까? 2'] = a.class_t1_q5 || '';
+  row['6) 교재에 만족하십니까? 2'] = ''; // 탐구1엔 교재 q5만
+  row['7) 피드백 선생님의 질문답변에 만족하십니까? 2'] = '';
+  row['8) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 2'] = a.class_t1_free || '';
+  // 탐구2 (Col 34-42)
+  row['수업이 진행되는 강의실을 선택해 주십시오. 3'] = a.class_t2_room || '';
+  row['1) 선생님의 전반적인 수업 운영에 만족하십니까? 3'] = a.class_t2_q1 || '';
+  row['2) 선생님은 질문에 성실히 답변해주셨습니까? 3'] = a.class_t2_q2 || '';
+  row['3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까? 3'] = a.class_t2_q3 || '';
+  row['4) 선생님의 과제 검사 및 관리에 만족하십니까? 3'] = a.class_t2_q4 || '';
+  row['5) 선생님은 나의 학습상황에 관심을 갖고 공부법이나 약점에 대한 학습상담을 잘 해주셨습니까? 3'] = a.class_t2_q5 || '';
+  row['6) 교재에 만족하십니까? 3'] = '';
+  row['7) 피드백 선생님의 질문답변에 만족하십니까? 3'] = '';
+  row['8) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 3'] = a.class_t2_free || '';
+  // 논술 (Col 86-92)
+  row['수강하고 있는 논술 강의를 선택해 주십시오.\n수강하는 논술 강의가 없다면 "해당 없음"을 선택해 주십시오.'] = a.class_essay_room || '';
+  row['1) 선생님의 전반적인 수업 운영에 만족하십니까? 9'] = a.class_essay_q1 || '';
+  row['2) 선생님은 수업내용을 효과적으로 전달하셨습니까?'] = a.class_essay_q2 || '';
+  row['3) 수업의 난이도는 적절했습니까?'] = a.class_essay_q3 || '';
+  row['4) 선생님의 첨삭 피드백에 만족하십니까?'] = a.class_essay_q4 || '';
+  row['5) 선생님은 질문에 성실히 답변해주셨습니까?'] = a.class_essay_q5 || '';
+  row['6) 수업영역(논술)에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?'] = a.class_essay_free || '';
+  // 기초특강1 (Col 93-96)
+  row['수강했던 기초 강의를 선택해 주십시오.'] = a.class_special_room || '';
+  row['1) 선생님의 전반적인 수업 운영에 만족하십니까? 10'] = a.class_special_q1 || '';
+  row['2) 특강 수업이 수강생의 부족했던 부분을 보완하는 데 도움이 되었습니까?'] = a.class_special_q2 || '';
+  row['3) 수업영역(기초특강)에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?'] = a.class_special_free || '';
+  // 담임상담 (Col 101-104)
+  row['담임선생님을 선택해 주십시오.'] = a.homeroom_teacher || '';
+  row['1) 담임상담이 성적관리에 도움이 되었습니까?'] = a.homeroom_q1 || '';
+  row['2) 담임상담이 정서관리에 도움이 되었습니까?'] = a.homeroom_q2 || '';
+  row['3) 담임상담에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?'] = a.homeroom_free || '';
+  // 매일깨기 (Col 105-109)
+  row['1) 국어매일깨기 문제풀이 학습이 학업에 도움이 되었습니까?'] = a.daily_q1 || '';
+  row['2) 수학매일깨기 문제풀이 학습이 학업에 도움이 되었습니까?'] = a.daily_q2 || '';
+  row['3) 영어매일깨기 어휘 학습이 학업에 도움이 되었습니까?'] = a.daily_q3 || '';
+  row['4) 주간깨기를 통한 반복 학습이 학업에 도움이 되었습니까?'] = a.daily_q4 || '';
+  row['5) 매일깨기/주간깨기에 관하여 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?'] = a.daily_free || '';
+  // 급식 (Col 110-114)
+  row['1) 급식 맛에 만족하십니까?'] = a.meal_q1 || '';
+  row['2) 급식 메뉴에 만족하십니까?'] = a.meal_q2 || '';
+  row['3) 급식 양에 만족하십니까?'] = a.meal_q3 || '';
+  row['4) 급식 위생에 만족하십니까?'] = a.meal_q4 || '';
+  row['5) 급식에 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?'] = a.meal_free || '';
+  // 학사 (Col 115-122)
+  row['다음 중 생활한 학사를 선택해 주십시오.'] = a.dorm_name || '';
+  row['1) 아침식사에 만족하십니까?'] = a.dorm_q1 || '';
+  row['2) 기상 관리가 잘 이루어졌다고 생각하십니까?'] = a.dorm_q2 || '';
+  row['3) 셔틀 탑승부터 하차까지 정숙한 분위기가 유지되었습니까?'] = a.dorm_q3a || '';
+  row['4) 휴대폰 및 전자기기 수거와 관리에 만족하십니까?'] = a.dorm_q4 || '';
+  row['5) 학사 복귀 후 대화 및 취침 전까지의 관리에 만족하십니까?'] = a.dorm_q5 || '';
+  row['6) 학사 내 청소와 빨래에 대해 만족하십니까?'] = a.dorm_q6 || '';
+  row['7) 학사 운영에 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?'] = a.dorm_free || '';
+  // 학사 2 (셔틀 추가) (Col 123-129) - 일부 학사만
+  row['3) 학사 출발부터 학원 도착까지 정숙한 분위기가 유지되었습니까?'] = a.dorm_q3b || '';
+  // 기타 (Col 130)
+  row['기타 건의사항이 있으시면 적어주십시오.'] = a.main_other || '';
+  return row;
+};
+
 function submit() {
   data.meta.submittedAt = new Date().toISOString();
   data.meta.surveyKey = SURVEY_KEY; // 분기 식별자 포함
+  // 익명 응답 - 자동 생성된 응답 ID (개인 식별 불가)
+  data.meta.anonId = 'a_' + Math.random().toString(36).slice(2, 11) + '_' + Date.now().toString(36);
   console.log('[제출 데이터]', data);
   // 1) localStorage 백업 (네트워크 실패 시 보존)
   try {
-    localStorage.setItem('lastSurvey_' + data.meta.studentId, JSON.stringify(data));
+    localStorage.setItem('lastSurvey_' + data.meta.anonId, JSON.stringify(data));
     localStorage.setItem(SURVEY_KEY, JSON.stringify({
-      name: data.meta.name,
-      studentId: data.meta.studentId,
+      anonId: data.meta.anonId,
       submittedAt: data.meta.submittedAt
     }));
   } catch(e) {}
-  // 2) Firebase Firestore에 저장 (자동 자료 수집) - 비동기, 결과 안 기다림
+  // 2) raw 130열 양식으로 변환 + Firebase 저장
   saveToFirebase(data).catch(err => {
     console.error('Firebase 저장 실패:', err);
-    // 실패해도 localStorage엔 저장됐으니 학생은 응시 완료
-    // 미저장 마킹 - 나중에 재시도 가능
     try {
       const pending = JSON.parse(localStorage.getItem('kangan_firebase_pending') || '[]');
       pending.push({ data, time: Date.now() });
@@ -556,8 +651,18 @@ async function saveToFirebase(surveyData) {
     }
     await new Promise(resolve => setTimeout(resolve, 200));
   }
-  await window.__firestoreSaveResponse(surveyData);
-  console.log('[Firebase] 저장 완료');
+  // raw 130열 양식 + 기본 메타 정보 모두 저장
+  const rawRow = window.__buildRawRow(surveyData);
+  const payload = {
+    raw: rawRow,                                    // raw 엑셀 130열 양식
+    submittedAt: surveyData.meta.submittedAt,       // 제출 시각
+    surveyKey: surveyData.meta.surveyKey,           // 분기 ID (예: "2027-1-2")
+    anonId: surveyData.meta.anonId || '',           // 익명 자동 생성 ID
+    studentType: surveyData.meta.type || '',
+    studentGender: surveyData.meta.gender || '',
+  };
+  await window.__firestoreSaveResponse(payload);
+  console.log('[Firebase] 저장 완료 (raw 양식)');
 }
 
 // 페이지 로드 시 응시 완료 여부 확인
@@ -574,14 +679,13 @@ async function saveToFirebase(surveyData) {
             <div style="font-size:48px;margin-bottom:12px;">✓</div>
             <h1 style="font-size:22px;font-weight:700;letter-spacing:-0.025em;color:#1a1a1a;margin:0 0 8px;">이미 응시하셨습니다</h1>
             <p style="font-size:14px;color:#8a8a84;margin:0 0 22px;line-height:1.6;">
-              ${info.name} 학생 (${info.studentId})<br>
               제출 시각: ${submittedDate}
             </p>
             <div style="background:#f7f6f1;border-radius:8px;padding:14px 16px;font-size:13px;color:#4a4a48;line-height:1.55;text-align:left;margin-bottom:18px;">
               본 설문은 1인 1회만 응시 가능합니다. 응답을 수정하고 싶으시면 담임선생님께 문의해주세요.
             </div>
-            <button onclick="if(confirm('응시 기록을 초기화하고 다시 응시하시겠습니까? (시제품 테스트용)')) { localStorage.removeItem('${SURVEY_KEY}'); location.reload(); }" style="background:transparent;border:1px solid #d4d1c4;color:#8a8a84;padding:8px 16px;font-size:12px;border-radius:6px;cursor:pointer;font-family:inherit;">
-              [시제품] 다시 응시하기
+            <button onclick="if(confirm('응시 기록을 초기화하고 다시 응시하시겠습니까?')) { localStorage.removeItem('${SURVEY_KEY}'); location.reload(); }" style="background:transparent;border:1px solid #d4d1c4;color:#8a8a84;padding:8px 16px;font-size:12px;border-radius:6px;cursor:pointer;font-family:inherit;">
+              다시 응시하기
             </button>
           </div>
         </div>
@@ -614,14 +718,10 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // 전역으로 노출 - 학생 설문 submit 시 호출
-window.__firestoreSaveResponse = async function(surveyData) {
+window.__firestoreSaveResponse = async function(payload) {
   const docRef = await addDoc(collection(db, 'responses'), {
-    ...surveyData,
+    ...payload,
     serverTimestamp: serverTimestamp(),
-    submittedAt: surveyData.meta.submittedAt || new Date().toISOString(),
-    surveyKey: surveyData.meta.surveyKey || 'unknown',
-    studentId: surveyData.meta.studentId || 'unknown',
-    studentName: surveyData.meta.name || 'unknown',
   });
   return docRef.id;
 };
