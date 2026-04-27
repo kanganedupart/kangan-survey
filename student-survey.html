@@ -518,18 +518,46 @@ const SURVEY_KEY = 'kangan_survey_done_2027-1-2'; // 2027학년도 1학기 2차
 
 function submit() {
   data.meta.submittedAt = new Date().toISOString();
+  data.meta.surveyKey = SURVEY_KEY; // 분기 식별자 포함
   console.log('[제출 데이터]', data);
+  // 1) localStorage 백업 (네트워크 실패 시 보존)
   try {
     localStorage.setItem('lastSurvey_' + data.meta.studentId, JSON.stringify(data));
-    // 1회 응시 마킹
     localStorage.setItem(SURVEY_KEY, JSON.stringify({
       name: data.meta.name,
       studentId: data.meta.studentId,
       submittedAt: data.meta.submittedAt
     }));
   } catch(e) {}
+  // 2) Firebase Firestore에 저장 (자동 자료 수집) - 비동기, 결과 안 기다림
+  saveToFirebase(data).catch(err => {
+    console.error('Firebase 저장 실패:', err);
+    // 실패해도 localStorage엔 저장됐으니 학생은 응시 완료
+    // 미저장 마킹 - 나중에 재시도 가능
+    try {
+      const pending = JSON.parse(localStorage.getItem('kangan_firebase_pending') || '[]');
+      pending.push({ data, time: Date.now() });
+      localStorage.setItem('kangan_firebase_pending', JSON.stringify(pending));
+    } catch(e) {}
+  });
+  // 3) 응시 완료 화면으로 이동 (Firebase 저장 결과는 백그라운드 처리)
   cur = STEPS.length - 1;
   render();
+}
+
+// Firebase 저장 (모듈 초기화 promise를 기다림)
+async function saveToFirebase(surveyData) {
+  // 최대 10초 동안 Firebase 초기화 완료 기다림
+  const maxWait = 10000;
+  const startTime = Date.now();
+  while (typeof window.__firestoreSaveResponse !== 'function') {
+    if (Date.now() - startTime > maxWait) {
+      throw new Error('Firebase 초기화 시간 초과 (10초). 네트워크 확인 필요.');
+    }
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+  await window.__firestoreSaveResponse(surveyData);
+  console.log('[Firebase] 저장 완료');
 }
 
 // 페이지 로드 시 응시 완료 여부 확인
@@ -564,6 +592,41 @@ function submit() {
 })();
 
 render();
+</script>
+
+<!-- ============================================================== -->
+<!-- Firebase 자동 자료 수집 (학생 응답 → Firestore responses 컬렉션) -->
+<!-- ============================================================== -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCgwHuWurTJHkYmB_EvE3KBrVVad3lbk4g",
+  authDomain: "kangan-survey.firebaseapp.com",
+  projectId: "kangan-survey",
+  storageBucket: "kangan-survey.firebasestorage.app",
+  messagingSenderId: "540432014473",
+  appId: "1:540432014473:web:fda47bfb990fdcf775ba58"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// 전역으로 노출 - 학생 설문 submit 시 호출
+window.__firestoreSaveResponse = async function(surveyData) {
+  const docRef = await addDoc(collection(db, 'responses'), {
+    ...surveyData,
+    serverTimestamp: serverTimestamp(),
+    submittedAt: surveyData.meta.submittedAt || new Date().toISOString(),
+    surveyKey: surveyData.meta.surveyKey || 'unknown',
+    studentId: surveyData.meta.studentId || 'unknown',
+    studentName: surveyData.meta.name || 'unknown',
+  });
+  return docRef.id;
+};
+
+console.log('[Firebase] 초기화 완료. 응답 시 자동 저장됩니다.');
 </script>
 </body>
 </html>

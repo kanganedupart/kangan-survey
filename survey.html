@@ -1791,15 +1791,36 @@ function downloadXlsx(sheets, filename) {
 }
 
 // ===== 학생 응답 원본(raw) 데이터 다운로드 =====
-// 시제품: 빌드 시 raw 엑셀 임베딩. 운영 시: Firebase에서 가져온 응답을 같은 형식으로
-window.dlRawData = function() {
+// 우선순위: 1) Firebase에서 실제 응답 가져오기  2) 없으면 임베딩된 시제품 raw 다운
+window.dlRawData = async function() {
   try {
+    // Firebase 초기화 대기 (최대 8초)
+    let waited = 0;
+    while (typeof window.__firestoreFetchAllResponses !== 'function' && waited < 8000) {
+      if (waited === 0) toast('Firebase 연결 확인 중...');
+      await new Promise(r => setTimeout(r, 300));
+      waited += 300;
+    }
+    // 1) Firebase에서 응답 가져오기 시도
+    if (typeof window.__firestoreFetchAllResponses === 'function') {
+      toast('Firebase에서 학생 응답 가져오는 중...');
+      const responses = await window.__firestoreFetchAllResponses();
+      if (responses && responses.length > 0) {
+        // SheetJS로 엑셀 생성
+        await dlFirebaseResponsesAsXlsx(responses);
+        return;
+      }
+      // Firebase에 응답 없음 → fallback to embedded raw
+      toast('Firebase에 응답이 없습니다. 시제품 raw 데이터를 다운로드합니다.');
+    } else {
+      toast('Firebase 연결 안됨. 시제품 raw 데이터를 다운로드합니다.');
+    }
+    // 2) 임베딩된 raw 엑셀 (시제품 fallback)
     const b64 = window.__RAW_XLSX_B64__;
     if (!b64 || b64.length < 100) {
-      toast('원본 데이터가 임베딩되지 않았습니다. 관리자에게 문의하세요.');
+      toast('원본 데이터가 없습니다.');
       return;
     }
-    // base64 → Uint8Array → Blob
     const byteString = atob(b64);
     const bytes = new Uint8Array(byteString.length);
     for (let i = 0; i < byteString.length; i++) bytes[i] = byteString.charCodeAt(i);
@@ -1808,17 +1829,67 @@ window.dlRawData = function() {
     const a = document.createElement('a');
     a.href = url;
     const period = (D.meta.period || '현재').replace(/[^가-힣A-Za-z0-9]/g, '_');
-    a.download = `학생응답_원본_${period}.xlsx`;
+    a.download = `학생응답_원본_${period}_시제품.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast('학생 응답 원본 데이터 다운로드 완료');
+    toast('학생 응답 원본 (시제품) 다운로드 완료');
   } catch (e) {
     toast('다운로드 실패: ' + e.message);
     console.error(e);
   }
 };
+
+// Firebase 응답들을 SheetJS로 엑셀 변환 후 다운로드
+async function dlFirebaseResponsesAsXlsx(responses) {
+  // SheetJS 동적 로드
+  if (typeof XLSX === 'undefined') {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js';
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('SheetJS 로드 실패'));
+      document.head.appendChild(s);
+    });
+  }
+  // 응답 평탄화
+  const rows = responses.map((r, idx) => {
+    const flat = {
+      'No': idx + 1,
+      '제출시각': r.submittedAt || r.serverTimestamp || '',
+      '분기키': r.surveyKey || '',
+      '학생ID': r.studentId || '',
+      '학생이름': r.studentName || '',
+      '학생타입': r.meta?.type || '',
+      '성별': r.meta?.gender || '',
+    };
+    // 응답 답변들 평탄화 (questions, answers 안의 모든 값)
+    if (r.answers && typeof r.answers === 'object') {
+      Object.keys(r.answers).forEach(k => {
+        flat['답변_' + k] = JSON.stringify(r.answers[k]);
+      });
+    }
+    if (r.questions && typeof r.questions === 'object') {
+      Object.keys(r.questions).forEach(k => {
+        flat['질문_' + k] = String(r.questions[k]);
+      });
+    }
+    // 기타 모든 키 (meta 제외)
+    Object.keys(r).forEach(k => {
+      if (['submittedAt','serverTimestamp','surveyKey','studentId','studentName','meta','answers','questions','_id'].includes(k)) return;
+      flat[k] = typeof r[k] === 'object' ? JSON.stringify(r[k]) : r[k];
+    });
+    return flat;
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '학생응답');
+  const period = (D.meta.period || '현재').replace(/[^가-힣A-Za-z0-9]/g, '_');
+  const fname = `학생응답_원본_${period}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  toast(`Firebase 응답 ${responses.length}건 다운로드 완료`);
+}
 
 window.dlDashboard = function() {
   const period = D.meta.period;
@@ -6565,6 +6636,44 @@ window.changeMyPassword = function() {
   currentUser.password = newPwd;
   alert('비밀번호가 변경되었습니다.');
 };
+</script>
+
+<!-- ============================================================== -->
+<!-- Firebase 학생 응답 자동 가져오기 (Firestore responses 컬렉션 → 관리자) -->
+<!-- ============================================================== -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCgwHuWurTJHkYmB_EvE3KBrVVad3lbk4g",
+  authDomain: "kangan-survey.firebaseapp.com",
+  projectId: "kangan-survey",
+  storageBucket: "kangan-survey.firebasestorage.app",
+  messagingSenderId: "540432014473",
+  appId: "1:540432014473:web:fda47bfb990fdcf775ba58"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// 전역으로 노출 - dlRawData가 호출
+window.__firestoreFetchAllResponses = async function() {
+  try {
+    const q = query(collection(db, 'responses'), orderBy('submittedAt', 'asc'));
+    const snap = await getDocs(q);
+    const responses = [];
+    snap.forEach(doc => {
+      responses.push({ _id: doc.id, ...doc.data() });
+    });
+    return responses;
+  } catch (e) {
+    console.error('[Firebase] 응답 가져오기 실패:', e);
+    throw e;
+  }
+};
+
+console.log('[Firebase] 관리자 페이지 초기화 완료. 학생 응답 자동 동기화.');
 </script>
 </body>
 </html>

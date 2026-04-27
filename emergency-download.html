@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>강안교육 비상 다운로드</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; max-width: 600px; margin: 60px auto; padding: 20px; background: #f7f6f1; color: #1a1a1a; }
+  h1 { font-size: 22px; margin-bottom: 8px; }
+  .desc { color: #666; font-size: 14px; line-height: 1.6; margin-bottom: 28px; }
+  .card { background: #fff; padding: 24px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 16px; }
+  button { background: #b8540a; color: #fff; border: 0; padding: 14px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  button:hover { background: #9a4408; }
+  button:disabled { background: #aaa; cursor: not-allowed; }
+  .status { margin-top: 16px; padding: 12px; border-radius: 6px; font-size: 13px; }
+  .status.ok { background: #f4f9f6; color: #2d6a4f; border-left: 3px solid #2d6a4f; }
+  .status.err { background: #fef2f2; color: #c53030; border-left: 3px solid #c53030; }
+  .status.info { background: #eff6ff; color: #1e40af; border-left: 3px solid #1e40af; }
+  .meta { font-size: 12px; color: #888; margin-top: 20px; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <h1>📊 강안교육 비상 다운로드</h1>
+  <p class="desc">
+    관리자 페이지에 문제가 생긴 경우, 이 페이지에서 학생 응답을 직접 다운로드 받을 수 있습니다.<br>
+    이 페이지는 가장 단순한 방식으로 만들어져 있어 거의 깨질 일이 없습니다.
+  </p>
+
+  <div class="card">
+    <h2 style="font-size:16px; margin-top:0;">학생 응답 전체 엑셀 다운로드</h2>
+    <p style="font-size:13px; color:#555; margin-bottom:16px;">
+      Firebase에 저장된 모든 학생 응답을 그대로 엑셀로 받습니다.
+    </p>
+    <button id="dlBtn" onclick="downloadAll()">📊 전체 학생 응답 다운로드</button>
+    <div id="status"></div>
+  </div>
+
+  <div class="meta">
+    💡 <b>다운로드가 안 되면:</b><br>
+    1. 와이파이/인터넷 연결 확인<br>
+    2. 페이지 새로고침 (Ctrl+Shift+R)<br>
+    3. 그래도 안 되면 Firebase 콘솔에서 직접 다운: 
+       <a href="https://console.firebase.google.com/project/kangan-survey/firestore/data" target="_blank">바로가기</a>
+  </div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCgwHuWurTJHkYmB_EvE3KBrVVad3lbk4g",
+  authDomain: "kangan-survey.firebaseapp.com",
+  projectId: "kangan-survey",
+  storageBucket: "kangan-survey.firebasestorage.app",
+  messagingSenderId: "540432014473",
+  appId: "1:540432014473:web:fda47bfb990fdcf775ba58"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const statusDiv = document.getElementById('status');
+const btn = document.getElementById('dlBtn');
+
+function showStatus(type, msg) {
+  statusDiv.className = 'status ' + type;
+  statusDiv.textContent = msg;
+}
+
+window.downloadAll = async function() {
+  btn.disabled = true;
+  showStatus('info', '학생 응답 가져오는 중...');
+  try {
+    // 1) Firestore에서 응답 가져오기
+    const q = query(collection(db, 'responses'), orderBy('submittedAt', 'asc'));
+    const snap = await getDocs(q);
+    const responses = [];
+    snap.forEach(doc => responses.push({ _id: doc.id, ...doc.data() }));
+    
+    if (responses.length === 0) {
+      showStatus('err', '저장된 학생 응답이 없습니다.');
+      btn.disabled = false;
+      return;
+    }
+    showStatus('info', `${responses.length}건 받아옴. 엑셀 만드는 중...`);
+
+    // 2) SheetJS 동적 로드
+    if (typeof XLSX === 'undefined') {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js';
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('SheetJS 로드 실패'));
+        document.head.appendChild(s);
+      });
+    }
+    
+    // 3) 평탄화 후 엑셀
+    const rows = responses.map((r, idx) => {
+      const flat = {
+        'No': idx + 1,
+        '제출시각': r.submittedAt || '',
+        '분기키': r.surveyKey || '',
+        '학생ID': r.studentId || '',
+        '학생이름': r.studentName || '',
+        '학생타입': r.meta?.type || '',
+        '성별': r.meta?.gender || '',
+      };
+      if (r.answers && typeof r.answers === 'object') {
+        Object.keys(r.answers).forEach(k => {
+          flat['답변_' + k] = JSON.stringify(r.answers[k]);
+        });
+      }
+      Object.keys(r).forEach(k => {
+        if (['submittedAt','serverTimestamp','surveyKey','studentId','studentName','meta','answers','questions','_id'].includes(k)) return;
+        flat[k] = typeof r[k] === 'object' ? JSON.stringify(r[k]) : r[k];
+      });
+      return flat;
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '학생응답');
+    const fname = `학생응답_비상다운_${new Date().toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(wb, fname);
+    showStatus('ok', `✅ 완료! ${responses.length}건 응답이 엑셀로 다운로드 되었습니다.`);
+    btn.disabled = false;
+  } catch (e) {
+    console.error(e);
+    showStatus('err', '오류: ' + e.message);
+    btn.disabled = false;
+  }
+};
+
+console.log('[비상 다운로드] Firebase 연결 완료. 버튼 누르면 다운로드.');
+</script>
+</body>
+</html>
