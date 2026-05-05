@@ -491,7 +491,29 @@ const STEP_RENDERERS = {
     </div>`,
 
   // 13. 완료
-  done: () => `
+  done: () => {
+    const status = data.meta.saveStatus || 'pending';
+    let statusBox = '';
+    if (status === 'pending') {
+      statusBox = `
+        <div style="margin: 14px 0; padding: 12px 16px; background: #fff7e6; border-left: 3px solid #d97706; border-radius: 6px; font-size: 13px; color: #9a6614; line-height: 1.6;">
+          ⏳ <b>저장 중...</b> 잠시만 기다려주세요. (5초 이내)
+        </div>`;
+    } else if (status === 'success') {
+      statusBox = `
+        <div style="margin: 14px 0; padding: 12px 16px; background: #f0fdf4; border-left: 3px solid #16a34a; border-radius: 6px; font-size: 13px; color: #166534; line-height: 1.6;">
+          ✅ <b>응답이 안전하게 저장되었습니다.</b>
+        </div>`;
+    } else if (status === 'failed') {
+      statusBox = `
+        <div style="margin: 14px 0; padding: 14px 16px; background: #fef2f2; border-left: 3px solid #dc2626; border-radius: 6px; font-size: 13px; color: #991b1b; line-height: 1.6;">
+          ⚠️ <b>저장에 실패했습니다.</b><br>
+          네트워크 문제일 수 있습니다. 페이지를 새로고침하고 다시 응답해주세요.<br>
+          <button onclick="location.reload()" style="margin-top:8px; padding: 6px 14px; background:#dc2626; color:#fff; border:0; border-radius:5px; font-size:12px; font-family:inherit; cursor:pointer; font-weight:600;">🔄 다시 시도</button>
+          <br><span style="font-size:11px; color:#6b7280; margin-top:6px; display:inline-block;">담임선생님께 문의해주세요.</span>
+        </div>`;
+    }
+    return `
     <div class="card done-card">
       <div class="done-icon"></div>
       <h2 class="section-title" style="margin-top:0;">제출이 완료되었습니다</h2>
@@ -501,11 +523,13 @@ const STEP_RENDERERS = {
         앞으로도 학습 과정 전반에 걸쳐 지속적으로 관리하고 지원하며, 여러분이 목표한 결과에 도달할 수 있도록 끝까지 함께 하겠습니다.<br>
         감사합니다.
       </div>
+      ${statusBox}
       <div class="done-meta">
         제출 시각 ${new Date(data.meta.submittedAt).toLocaleString('ko-KR')}<br>
         🔒 익명 응답
       </div>
-    </div>`
+    </div>`;
+  }
 };
 
 // 응시 키 (분기/회차별로 분리)
@@ -623,21 +647,44 @@ function submit() {
     localStorage.setItem('lastSurvey_' + data.meta.anonId, JSON.stringify(data));
     localStorage.setItem(SURVEY_KEY, JSON.stringify({
       anonId: data.meta.anonId,
-      submittedAt: data.meta.submittedAt
+      submittedAt: data.meta.submittedAt,
+      saveStatus: 'pending'
     }));
   } catch(e) {}
-  // 2) raw 130열 양식으로 변환 + Firebase 저장
-  saveToFirebase(data).catch(err => {
+  
+  // 2) 응시 완료 화면으로 이동 (저장 진행 상태 표시)
+  cur = STEPS.length - 1;
+  data.meta.saveStatus = 'pending';
+  render();
+
+  // 3) Firebase 저장 (백그라운드, 결과를 UI에 반영)
+  saveToFirebase(data).then(() => {
+    // 성공
+    data.meta.saveStatus = 'success';
+    try {
+      localStorage.setItem(SURVEY_KEY, JSON.stringify({
+        anonId: data.meta.anonId,
+        submittedAt: data.meta.submittedAt,
+        saveStatus: 'success'
+      }));
+    } catch(e) {}
+    if (cur === STEPS.length - 1) render(); // 이미 done 화면이면 갱신
+  }).catch(err => {
     console.error('Firebase 저장 실패:', err);
+    data.meta.saveStatus = 'failed';
+    data.meta.saveError = err.message || String(err);
     try {
       const pending = JSON.parse(localStorage.getItem('kangan_firebase_pending') || '[]');
       pending.push({ data, time: Date.now() });
       localStorage.setItem('kangan_firebase_pending', JSON.stringify(pending));
+      localStorage.setItem(SURVEY_KEY, JSON.stringify({
+        anonId: data.meta.anonId,
+        submittedAt: data.meta.submittedAt,
+        saveStatus: 'failed'
+      }));
     } catch(e) {}
+    if (cur === STEPS.length - 1) render(); // 실패 안내 화면 갱신
   });
-  // 3) 응시 완료 화면으로 이동 (Firebase 저장 결과는 백그라운드 처리)
-  cur = STEPS.length - 1;
-  render();
 }
 
 // Firebase 저장 (모듈 초기화 promise를 기다림)
