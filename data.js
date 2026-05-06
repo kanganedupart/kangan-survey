@@ -1,5 +1,5 @@
 // 강안교육 만족도 조사 - 데이터 파일
-// 생성일: 2026. 5. 7. 오전 8:12:17
+// 생성일: 2026. 5. 7. 오전 8:40:53
 
 window.SURVEYS_EXTERNAL = {
  "2027-1-2": {
@@ -310,7 +310,7 @@ window.SURVEYS_EXTERNAL = {
    "period": "2027학년도 정규반 1학기 1차 만족도 조사(raw data)",
    "period_id": "2027학년도_정규반_1학기_1차_만족도_조사_raw_data_",
    "n_target": 627,
-   "submitted_at": "2026-05-06T23:12:11.748Z",
+   "submitted_at": "2026-05-06T23:40:53.402Z",
    "n_total": 627,
    "overall_score": 4.382
   },
