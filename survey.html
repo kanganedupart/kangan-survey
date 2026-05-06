@@ -399,10 +399,34 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
     return valid.reduce((s, v) => s + v, 0) / valid.length;
   };
   const round2 = (n) => Math.round(n * 1000) / 1000;
+  // 한글 응답 → 숫자 변환 (구글 폼 응답 호환)
+  const KOREAN_TO_NUM = {
+    '매우 그렇다': 5,
+    '그렇다': 4,
+    '보통이다': 3,
+    '보통': 3,
+    '그렇지 않다': 2,
+    '매우 그렇지 않다': 1,
+    '전혀 그렇지 않다': 1,
+    '매우 만족': 5,
+    '만족': 4,
+    '불만족': 2,
+    '매우 불만족': 1,
+    '매우 도움이 됐다': 5,
+    '도움이 됐다': 4,
+    '도움이 되지 않았다': 2,
+    '매우 도움이 되지 않았다': 1,
+  };
   const numOrNull = (v) => {
     if (v === null || v === undefined || v === '') return null;
+    // 1) 숫자인 경우
     const n = parseFloat(v);
-    return (isNaN(n) || n < 1 || n > 5) ? null : n;
+    if (!isNaN(n) && n >= 1 && n <= 5) return n;
+    // 2) 한글 응답인 경우
+    const s = String(v).trim();
+    if (KOREAN_TO_NUM[s]) return KOREAN_TO_NUM[s];
+    // 3) 일치하지 않음
+    return null;
   };
 
   // === 1. 영역별 점수 (sections) ===
