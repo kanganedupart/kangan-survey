@@ -2423,12 +2423,17 @@ window.SURVEYS_EXTERNAL = {
       },
       {
         "teacher": "이민호B",
-        "subject": "논술",
+        "subject": "수학",
         "n_responses": 81,
         "수업운영": 4.64,
         "질문답변": 4.67,
-        "overall": 4.65,
-        "n_students": 16,
+        "P/F테스트": 4.69,
+        "과제관리": 4.67,
+        "학습상담": 4.36,
+        "교재": 4.44,
+        "피드백": 3.78,
+        "overall": 4.46,
+        "n_students": 12,
         "comments": [
           "수업과 교재, 추가 자료 부분에서 매우 만족하고 있습니다.",
           "저녁식사후 질의응답하기 어렵다",
@@ -4387,6 +4392,12 @@ window.SURVEYS_EXTERNAL = {
         "n": 2508
       },
       {
+        "section": "수업(수학)",
+        "question": "이민호B - 피드백",
+        "avg": 3.78,
+        "n": 81
+      },
+      {
         "section": "학사",
         "question": "(여) 태원학사 - 청소/빨래",
         "avg": 3.83,
@@ -4401,12 +4412,6 @@ window.SURVEYS_EXTERNAL = {
       {
         "section": "매일깨기",
         "question": "수학매일깨기",
-        "avg": 4.02,
-        "n": 2508
-      },
-      {
-        "section": "급식",
-        "question": "급식 메뉴",
         "avg": 4.02,
         "n": 2508
       }
@@ -4419,6 +4424,12 @@ window.SURVEYS_EXTERNAL = {
         "n": 2508
       },
       {
+        "section": "수업(수학)",
+        "question": "이민호B - 피드백",
+        "avg": 3.78,
+        "n": 81
+      },
+      {
         "section": "학사",
         "question": "(여) 태원학사 - 청소/빨래",
         "avg": 3.83,
@@ -4433,12 +4444,6 @@ window.SURVEYS_EXTERNAL = {
       {
         "section": "매일깨기",
         "question": "수학매일깨기",
-        "avg": 4.02,
-        "n": 2508
-      },
-      {
-        "section": "급식",
-        "question": "급식 메뉴",
         "avg": 4.02,
         "n": 2508
       }
