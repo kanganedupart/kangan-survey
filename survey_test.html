@@ -691,6 +691,79 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
     questions: ['아침식사', '기상관리', '셔틀 정숙', '휴대폰 관리', '학사복귀후 관리', '청소/빨래']
   };
 
+  // === [추가됨 2026-05] sections에 빠진 영역 추가 ===
+  // 수업(국수영) - 국어/수학/영어 강사들의 점수 평균
+  // 탐구 - 탐구 강사들의 점수 평균
+  // 논술 - 논술 강사들의 점수 평균
+  // 기초특강 - 기초특강 강사들의 점수 평균
+  // 담임상담, 학사 - 별도 처리
+
+  // 강사를 과목별로 분류
+  function teachersBySubject(subj) {
+    return teachers.filter(t => {
+      const ts = t.subject || '';
+      if (subj === '국수영') return ['국어','수학','영어'].includes(ts);
+      return ts === subj;
+    });
+  }
+  function buildSectionFromTeachers(secName, weight, subj, qNames) {
+    const ts = teachersBySubject(subj);
+    if (ts.length === 0) return null;
+    const detailsAvg = {};
+    let totalN = 0;
+    qNames.forEach(q => {
+      const vals = ts.map(t => t[q]).filter(v => typeof v === 'number');
+      if (vals.length) detailsAvg[q] = round2(avg(vals));
+    });
+    const allVals = ts.flatMap(t => qNames.map(q => t[q]).filter(v => typeof v === 'number'));
+    totalN = ts.reduce((s, t) => s + (t.n_responses || 0), 0);
+    const cmts = ts.flatMap(t => t.comments || []);
+    return { sec: secName, weight, avg: allVals.length ? round2(avg(allVals)) : 0, n: totalN, details: detailsAvg, comments: cmts };
+  }
+  const subjectSections = [
+    buildSectionFromTeachers('수업(국수영)', 0.27, '국수영', ['수업운영','질문답변','P/F테스트','과제관리','학습상담','교재','피드백']),
+    buildSectionFromTeachers('탐구', 0.08, '탐구', ['수업운영','질문답변','P/F테스트','과제관리','교재']),
+    buildSectionFromTeachers('논술', 0.03, '논술', ['수업운영','효과적전달','난이도','첨삭피드백','질문답변']),
+    buildSectionFromTeachers('기초특강', 0.02, '기초특강', ['수업운영','보완도움']),
+  ].filter(s => s && s.n > 0);
+
+  // 담임상담 영역
+  if (homerooms.length > 0) {
+    const allHomeroomVals = homerooms.flatMap(h => [h['성적관리'], h['정서관리']].filter(v => typeof v === 'number'));
+    const homerommAvg = allHomeroomVals.length ? round2(avg(allHomeroomVals)) : 0;
+    const v1All = homerooms.map(h => h['성적관리']).filter(v => typeof v === 'number');
+    const v2All = homerooms.map(h => h['정서관리']).filter(v => typeof v === 'number');
+    subjectSections.push({
+      sec: '담임상담', weight: 0.15,
+      avg: homerommAvg, n: homerooms.reduce((s,h) => s + (h.n_students || 0), 0),
+      details: {
+        '담임 성적관리 도움': v1All.length ? round2(avg(v1All)) : 0,
+        '담임 정서관리 도움': v2All.length ? round2(avg(v2All)) : 0,
+      },
+      comments: homerooms.flatMap(h => h.comments || []),
+    });
+  }
+
+  // 학사 영역
+  if (haksaList.length > 0) {
+    const allHaksaVals = haksaList.flatMap(h => Object.keys(haksaQs).map(q => h[q]).filter(v => typeof v === 'number'));
+    const haksaSecAvg = allHaksaVals.length ? round2(avg(allHaksaVals)) : 0;
+    const haksaDetails = {};
+    Object.keys(haksaQs).forEach(q => {
+      const vs = haksaList.map(h => h[q]).filter(v => typeof v === 'number');
+      if (vs.length) haksaDetails[q] = round2(avg(vs));
+    });
+    subjectSections.push({
+      sec: '학사', weight: 0.10,
+      avg: haksaSecAvg, n: haksaList.reduce((s,h) => s + (h.n || 0), 0),
+      details: haksaDetails,
+      comments: haksaList.flatMap(h => h.comments || []),
+    });
+  }
+
+  // 기존 sections에 추가
+  sections.push(...subjectSections);
+
   // === 4. 종합 점수 (가중평균) ===
   const allSectionAvgs = sections.filter(s => s.n > 0).map(s => s.avg);
   // 강사 평균 (전체 강사 평균)
