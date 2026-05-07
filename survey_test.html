@@ -1316,13 +1316,27 @@ const ASSIGNEES = {
 
 // === 분기 시계열 (연 6회 설문 예정) ===
 // 실운영: 24년 1차 + 26년 1차 (현재). 새 분기 들어오면 PERIODS에 추가만 하면 됨.
-const PERIODS = [
-  { id: '2024-1', label: '2024년 1차', date: '2024.03', year: 2024, isCurrent: false },
-  { id: '2026-1', label: '2026년 1차', date: '2026.03', year: 2026, isCurrent: true },
-  { id: '2026-2', label: '2026년 2차', date: '2026.05', year: 2026, isCurrent: false, future: true },
-  { id: '2026-3', label: '2026년 2학기 1차', date: '2026.09', year: 2026, isCurrent: false, future: true },
-  { id: '2026-4', label: '2026년 2학기 2차', date: '2026.11', year: 2026, isCurrent: false, future: true },
-];
+// [수정됨 v9] 정적 분기 비움. data.js (SURVEYS_EXTERNAL)의 분기만 사용.
+// 옛날 하드코딩된 '2024-1', '2026-1' 등은 깨끗하게 제거.
+const PERIODS = [];
+
+// SURVEYS의 분기들을 자동으로 PERIODS에 등록
+(function autoFillPeriods() {
+  const ids = Object.keys(window.SURVEYS || {}).filter(id => id !== '__none__');
+  ids.forEach(id => {
+    const s = window.SURVEYS[id];
+    if (!s || !s.meta) return;
+    PERIODS.push({
+      id: id,
+      label: s.meta.period || id,
+      date: s.meta.date || '',
+      year: s.meta.year || parseInt(id.split('-')[0]) || 2027,
+      isCurrent: id === window.CURRENT_PERIOD_ID,
+    });
+  });
+  // 정렬: ID 오름차순
+  PERIODS.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+})();
 // 학원 평균 분기 추이: PERIODS의 isCurrent + 과거 분기에서 자동 채움
 function getOverallHistory() {
   return PERIODS.map(p => {
