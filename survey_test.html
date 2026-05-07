@@ -2387,13 +2387,10 @@ window.toggleAutoRefresh = function() {
 };
 
 function startAutoRefresh() {
-  if (window.__autoRefreshInterval) clearInterval(window.__autoRefreshInterval);
-  // 30초마다 자동 새로고침 (현재 분기가 Firebase 분기일 때만)
-  window.__autoRefreshInterval = setInterval(silentRefresh, 30000);
-  const btn = document.getElementById('autoRefreshToggle');
-  if (btn) btn.textContent = '자동 새로고침 끄기';
-  const status = document.getElementById('autoRefreshStatus');
-  if (status) status.textContent = '자동 새로고침 30초 (응답 실시간 반영)';
+  // [수정됨 2026-05] 자동 새로고침 비활성화
+  // 보스 환경(엑셀 직접 업로드)에서는 30초 새로고침이 파일 선택을 초기화시키는 문제 때문에 끔
+  // 옛날 잘 작동하던 코드처럼 자동 새로고침 없이 동작
+  return;
 }
 
 async function silentRefresh() {
@@ -8026,20 +8023,13 @@ if (!currentUser) {
   renderPeriodSelector();
   renderTab('dashboard');
   
-  // Firebase에서 새 분기 응답 자동 로드 (백그라운드)
+  // Firebase에서 새 분기 응답 자동 로드 (백그라운드, 한 번만)
   setTimeout(async () => {
     try {
       const result = await loadFirebasePeriods();
       if (result && result.added > 0) {
-        // 새 분기 추가됨 → 사이드바 재렌더 (현재 탭은 유지)
         renderPeriodSelector();
         toast(`Firebase에서 ${result.added}개 분기 자동 로드됨`);
-      }
-      // [수정됨 2026-05] Firebase 응답이 있을 때만 자동 새로고침 시작
-      // (응답 0개면 자동 새로고침이 화면을 30초마다 다시 그려서 엑셀 업로드 방해)
-      if (result && result.total > 0) {
-        window.__autoRefreshLastResponseCount = result.total;
-        startAutoRefresh();
       }
     } catch (e) {
       console.error('[Firebase] 자동 로드 실패:', e);
