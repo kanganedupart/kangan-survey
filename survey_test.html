@@ -8035,9 +8035,12 @@ if (!currentUser) {
         renderPeriodSelector();
         toast(`Firebase에서 ${result.added}개 분기 자동 로드됨`);
       }
-      // 자동 새로고침 시작 (30초 주기)
-      window.__autoRefreshLastResponseCount = result ? result.total : 0;
-      startAutoRefresh();
+      // [수정됨 2026-05] Firebase 응답이 있을 때만 자동 새로고침 시작
+      // (응답 0개면 자동 새로고침이 화면을 30초마다 다시 그려서 엑셀 업로드 방해)
+      if (result && result.total > 0) {
+        window.__autoRefreshLastResponseCount = result.total;
+        startAutoRefresh();
+      }
     } catch (e) {
       console.error('[Firebase] 자동 로드 실패:', e);
     }
