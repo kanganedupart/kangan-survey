@@ -584,7 +584,7 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
         '질문답변': '2) 선생님은 질문에 성실히 답변해주셨습니까? 7',
         'P/F테스트': '3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까? 7',
         '과제관리': '4) 선생님의 과제 검사 및 관리에 만족하십니까? 7',
-        '교재': '5) 새벽깨기 문제를 포함하여, 교재에 만족하십니까?',
+        '교재': '5) 교재에 만족하십니까?',
       },
       freeCol: '6) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?' },
     { roomCol: '수업이 진행되는 강의실을 선택해 주십시오. \n강의실은 3/17(화), 3/19(목) 기준입니다. 바뀐 강의실에 유의해주십시오. 2', type: '탐구',
@@ -593,7 +593,7 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
         '질문답변': '2) 선생님은 질문에 성실히 답변해주셨습니까? 8',
         'P/F테스트': '3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까? 8',
         '과제관리': '4) 선생님의 과제 검사 및 관리에 만족하십니까? 8',
-        '교재': '5) 새벽깨기 문제를 포함하여, 교재에 만족하십니까? 2',
+        '교재': '5) 교재에 만족하십니까? 2',
       },
       freeCol: '6) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 2' },
     // 논술: roomCol 다름, 질문도 다름
@@ -739,7 +739,8 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
     return aggregate;
   });
 
-  // === 4. 학사 (Col 115-122) ===
+  // === 4. 학사 (Col 115-128) ===
+  // [수정됨 v9] 두 번째 학사 그룹 (col 122-128) 추가 - 셔틀/청소 컬럼명 미세하게 다름
   const haksaQs = {
     '아침식사': '1) 아침식사에 만족하십니까?',
     '기상관리': '2) 기상 관리가 잘 이루어졌다고 생각하십니까?',
@@ -747,6 +748,15 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
     '휴대폰 관리': '4) 휴대폰 및 전자기기 수거와 관리에 만족하십니까?',
     '학사복귀후 관리': '5) 학사 복귀 후 대화 및 취침 전까지의 관리에 만족하십니까?',
     '청소/빨래': '6) 학사 내 청소와 빨래에 대해 만족하십니까?',
+  };
+  // 두 번째 학사 그룹 (보통 여학사) - "셔틀 정숙"이 "출발부터 도착까지", "청소"는 "및"
+  const haksaQs2 = {
+    '아침식사': '1) 아침식사에 만족하십니까? 2',
+    '기상관리': '2) 기상 관리가 잘 이루어졌다고 생각하십니까? 2',
+    '셔틀 정숙': '3) 학사 출발부터 학원 도착까지 정숙한 분위기가 유지되었습니까?',
+    '휴대폰 관리': '4) 휴대폰 및 전자기기 수거와 관리에 만족하십니까? 2',
+    '학사복귀후 관리': '5) 학사 복귀 후 대화 및 취침 전까지의 관리에 만족하십니까? 2',
+    '청소/빨래': '6) 학사 내 청소 및 빨래에 대해 만족하십니까?',
   };
 
   // === 담임상담 (Col 101-104) ===
@@ -783,18 +793,32 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
   const haksaMap = {};
   rows.forEach(r => {
     const dorm = r['다음 중 생활한 학사를 선택해 주십시오.'];
-    if (!dorm || !String(dorm).trim() || String(dorm).trim() === '해당 없음') return;
+    if (!dorm || !String(dorm).trim() || String(dorm).trim() === '해당 없음' || String(dorm).trim() === '해당 사항 없음') return;
     if (!haksaMap[dorm]) haksaMap[dorm] = { responses: [], comments: [] };
     const ans = {};
     let valid = false;
+    // 첫 번째 학사 그룹 시도
     Object.keys(haksaQs).forEach(qName => {
       const v = numOrNull(r[haksaQs[qName]]);
       if (v !== null) { ans[qName] = v; valid = true; }
     });
+    // [수정됨 v9] 첫 번째 그룹에 데이터 없으면 두 번째 그룹 시도
+    if (!valid) {
+      Object.keys(haksaQs2).forEach(qName => {
+        const v = numOrNull(r[haksaQs2[qName]]);
+        if (v !== null) { ans[qName] = v; valid = true; }
+      });
+    }
     if (!valid) return;
     haksaMap[dorm].responses.push(ans);
+    // 자유응답도 두 곳에서 수집
     const free = r['7) 학사 운영에 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?'];
-    if (free && String(free).trim()) haksaMap[dorm].comments.push(String(free).trim());
+    const free2 = r['7) 학사 운영에 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 2'];
+    [free, free2].forEach(f => {
+      if (f && String(f).trim() && String(f).trim() !== '없음' && String(f).trim() !== '.') {
+        haksaMap[dorm].comments.push(String(f).trim());
+      }
+    });
   });
 
   const haksaList = Object.keys(haksaMap).map(name => {
@@ -840,25 +864,80 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
       return ts === subj;
     });
   }
+  // [수정됨 v9] sections details = 강사 단순평균 → raw 응답 직접 평균으로 변경
+  // (PDF의 "엑셀 정답값"과 일치시키기 위함)
+  // teacher_map의 responses에 raw 점수가 그대로 있으니, 거기서 직접 평균
   function buildSectionFromTeachers(secName, weight, subj, qNames) {
-    const ts = teachersBySubject(subj);
-    if (ts.length === 0) return null;
-    const detailsAvg = {};
-    let totalN = 0;
-    qNames.forEach(q => {
-      const vals = ts.map(t => t[q]).filter(v => typeof v === 'number');
-      if (vals.length) detailsAvg[q] = round2(avg(vals));
+    // 해당 subject 강사들의 teacher_map key 모음
+    const targetKeys = Object.keys(teacherMap).filter(k => {
+      const t = teacherMap[k];
+      const ts = t.subject || '';
+      if (subj === '국수영') return ['국어','수학','영어'].includes(ts);
+      return ts === subj;
     });
-    const allVals = ts.flatMap(t => qNames.map(q => t[q]).filter(v => typeof v === 'number'));
-    totalN = ts.reduce((s, t) => s + (t.n_responses || 0), 0);
-    const cmts = ts.flatMap(t => t.comments || []);
-    return { sec: secName, weight, avg: allVals.length ? round2(avg(allVals)) : 0, n: totalN, details: detailsAvg, comments: cmts };
+    if (targetKeys.length === 0) return null;
+    
+    const detailsAvg = {};
+    let allRawVals = [];
+    qNames.forEach(q => {
+      const rawVals = [];
+      targetKeys.forEach(k => {
+        teacherMap[k].responses.forEach(r => {
+          if (typeof r[q] === 'number') rawVals.push(r[q]);
+        });
+      });
+      if (rawVals.length) {
+        detailsAvg[q] = round2(avg(rawVals));
+        allRawVals = allRawVals.concat(rawVals);
+      }
+    });
+    const totalN = targetKeys.reduce((s, k) => s + teacherMap[k].responses.length, 0);
+    const cmts = targetKeys.flatMap(k => 
+      teacherMap[k].responses.map(r => r.__free).filter(c => c && String(c).trim() && String(c).trim() !== '없음' && String(c).trim() !== '.')
+    );
+    return { sec: secName, weight, avg: allRawVals.length ? round2(avg(allRawVals)) : 0, n: totalN, details: detailsAvg, comments: cmts };
   }
+  // [수정됨 v9] 국수영/탐구 영역은 슬롯 컬럼에서 직접 raw 평균 (PDF 엑셀과 정확히 일치)
+  // 강사 매칭 여부와 무관하게 모든 응답 포함 → 가장 정확
+  function buildSectionFromSlots(secName, weight, slots, qNames) {
+    const detailsAvg = {};
+    let allRawVals = [];
+    qNames.forEach(q => {
+      const rawVals = [];
+      slots.forEach(slot => {
+        if (!slot.qs[q]) return;
+        rows.forEach(r => {
+          const v = numOrNull(r[slot.qs[q]]);
+          if (v !== null) rawVals.push(v);
+        });
+      });
+      if (rawVals.length) {
+        detailsAvg[q] = round2(avg(rawVals));
+        allRawVals = allRawVals.concat(rawVals);
+      }
+    });
+    const cmts = [];
+    slots.forEach(slot => {
+      rows.forEach(r => {
+        const c = r[slot.freeCol];
+        if (c && String(c).trim() && String(c).trim() !== '없음' && String(c).trim() !== '.') {
+          cmts.push(String(c).trim());
+        }
+      });
+    });
+    return { sec: secName, weight, avg: allRawVals.length ? round2(avg(allRawVals)) : 0, n: allRawVals.length, details: detailsAvg, comments: cmts };
+  }
+  
+  const ksySlots = classroomSlots.filter(s => s.type === '국수영');
+  const tamguSlots = classroomSlots.filter(s => s.type === '탐구');
+  const nonsulSlots = classroomSlots.filter(s => s.type === '논술');
+  const gicheoSlots = classroomSlots.filter(s => s.type === '기초특강');
+  
   const subjectSections = [
-    buildSectionFromTeachers('수업(국수영)', 0.27, '국수영', ['수업운영','질문답변','P/F테스트','과제관리','학습상담','교재','피드백']),
-    buildSectionFromTeachers('탐구', 0.08, '탐구', ['수업운영','질문답변','P/F테스트','과제관리','교재']),
-    buildSectionFromTeachers('논술', 0.03, '논술', ['수업운영','효과적전달','난이도','첨삭피드백','질문답변']),
-    buildSectionFromTeachers('기초특강', 0.02, '기초특강', ['수업운영','보완도움']),
+    buildSectionFromSlots('수업(국수영)', 0.27, ksySlots, ['수업운영','질문답변','P/F테스트','과제관리','학습상담','교재','피드백']),
+    buildSectionFromSlots('탐구', 0.08, tamguSlots, ['수업운영','질문답변','P/F테스트','과제관리','교재']),
+    buildSectionFromSlots('논술', 0.03, nonsulSlots, ['수업운영','효과적전달','난이도','첨삭피드백','질문답변']),
+    buildSectionFromSlots('기초특강', 0.02, gicheoSlots, ['수업운영','보완도움']),
   ].filter(s => s && s.n > 0);
 
   // 담임상담 영역
@@ -880,11 +959,12 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
 
   // 학사 영역
   if (haksaList.length > 0) {
-    const allHaksaVals = haksaList.flatMap(h => Object.keys(haksaQs).map(q => h[q]).filter(v => typeof v === 'number'));
+    // [수정됨 v9] h[q] → h.scores[q] 버그 수정
+    const allHaksaVals = haksaList.flatMap(h => Object.keys(haksaQs).map(q => h.scores && h.scores[q]).filter(v => typeof v === 'number' && v > 0));
     const haksaSecAvg = allHaksaVals.length ? round2(avg(allHaksaVals)) : 0;
     const haksaDetails = {};
     Object.keys(haksaQs).forEach(q => {
-      const vs = haksaList.map(h => h[q]).filter(v => typeof v === 'number');
+      const vs = haksaList.map(h => h.scores && h.scores[q]).filter(v => typeof v === 'number' && v > 0);
       if (vs.length) haksaDetails[q] = round2(avg(vs));
     });
     subjectSections.push({
@@ -1243,45 +1323,6 @@ const PERIODS = [
   { id: '2026-3', label: '2026년 2학기 1차', date: '2026.09', year: 2026, isCurrent: false, future: true },
   { id: '2026-4', label: '2026년 2학기 2차', date: '2026.11', year: 2026, isCurrent: false, future: true },
 ];
-
-// === [중요] data.js의 SURVEYS에 있지만 PERIODS에 없는 분기들을 자동 추가 ===
-// data.js를 GitHub에서 받아 로드하면 SURVEYS에 새 분기 들어있지만 PERIODS는 하드코딩이라 자동 안 들어감.
-// 이 동기화 없으면 사이드바에 새 분기 안 보임 (보스가 본 버그).
-(function syncPeriodsFromSurveys() {
-  const surveyIds = Object.keys(window.SURVEYS || {}).filter(id => id !== '__none__');
-  surveyIds.forEach(id => {
-    if (PERIODS.find(p => p.id === id)) return; // 이미 있음
-    const survey = window.SURVEYS[id];
-    if (!survey || !survey.meta) return;
-    // periodId 형식: "2027-1-1-정규" 또는 "2026-1" 등
-    const yearMatch = id.match(/^(\d{4})/);
-    const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
-    // target 추출 (4번째 부분)
-    const parts = id.split('-');
-    const target = parts.length >= 4 ? parts.slice(3).join('-') : null;
-    // 라벨: meta.period 우선, 없으면 id
-    const label = survey.meta.period || id;
-    PERIODS.push({
-      id,
-      label,
-      date: '업로드',
-      year,
-      target,
-      isCurrent: false, // 아래에서 별도로 지정
-      future: false,
-    });
-  });
-  // 현재 분기 (window.CURRENT_PERIOD_ID 기반) → isCurrent 동기화
-  if (window.CURRENT_PERIOD_ID) {
-    PERIODS.forEach(p => { p.isCurrent = (p.id === window.CURRENT_PERIOD_ID); });
-  }
-  // 정렬: 학년도 오름차순 → id 오름차순
-  PERIODS.sort((a, b) => {
-    if (a.year !== b.year) return a.year - b.year;
-    return a.id.localeCompare(b.id);
-  });
-})();
-
 // 학원 평균 분기 추이: PERIODS의 isCurrent + 과거 분기에서 자동 채움
 function getOverallHistory() {
   return PERIODS.map(p => {
@@ -2833,102 +2874,15 @@ window.refreshDataJsStatus = function() {
   }
   const jsonSize = JSON.stringify(window.SURVEYS).length;
   const sizeKB = (jsonSize / 1024).toFixed(0);
-  let html = `<b>현재 등록된 분기 ${ids.length}개</b> (예상 크기: ${sizeKB} KB)`;
-  html += `<div style="font-size:11px; color:var(--ink-3); margin: 4px 0 8px;">⚠️ 잘못 등록된 분기는 [🗑️ 삭제] 버튼으로 지운 후 [💾 data.js 다운로드]를 누르세요.</div>`;
-  html += `<table style="width:100%; font-size:12px; border-collapse:collapse; margin-top:6px;">`;
-  html += `<thead><tr style="background:#f9f6e8; border-bottom:1.5px solid #d4d1c4;"><th style="padding:6px 8px; text-align:left;">분기</th><th style="padding:6px 8px; text-align:right; width:90px;">응답수</th><th style="padding:6px 8px; text-align:center; width:120px;">현재 분기</th><th style="padding:6px 8px; text-align:center; width:80px;">삭제</th></tr></thead>`;
-  html += `<tbody>`;
+  let html = `<b>현재 등록된 분기 ${ids.length}개</b> (예상 크기: ${sizeKB} KB)<br><ul style="margin: 6px 0 0; padding-left: 20px;">`;
   ids.sort().forEach(id => {
     const data = window.SURVEYS[id];
     const label = (data && data.meta && data.meta.period) ? data.meta.period : id;
     const n = (data && data.meta && data.meta.n_total) ? data.meta.n_total : '?';
-    const isCurrent = (id === window.CURRENT_PERIOD_ID);
-    const escId = id.replace(/'/g, "\\'");
-    const escLabel = label.replace(/'/g, "\\'");
-    html += `<tr style="border-bottom:1px solid #ece9d9;">`;
-    html += `<td style="padding:6px 8px; ${isCurrent ? 'font-weight:700; color:#059669;' : ''}">${escapeHtml(label)}${isCurrent ? ' <span style="font-size:10px; color:#059669;">●현재</span>' : ''}</td>`;
-    html += `<td style="padding:6px 8px; text-align:right; color:var(--ink-2);">${n}건</td>`;
-    html += `<td style="padding:6px 8px; text-align:center;">`;
-    if (isCurrent) {
-      html += `<span style="font-size:10.5px; color:#059669; font-weight:700;">✓ 현재</span>`;
-    } else {
-      html += `<button onclick="setCurrentPeriod('${escId}')" style="font-size:10.5px; padding:3px 8px; background:#fff; border:1px solid #059669; color:#059669; border-radius:3px; cursor:pointer; font-weight:600;">현재로 설정</button>`;
-    }
-    html += `</td>`;
-    html += `<td style="padding:6px 8px; text-align:center;">`;
-    html += `<button onclick="deletePeriod('${escId}', '${escLabel}')" style="font-size:11px; padding:3px 8px; background:#fee2e2; border:1px solid #dc2626; color:#dc2626; border-radius:3px; cursor:pointer; font-weight:600;">🗑️ 삭제</button>`;
-    html += `</td>`;
-    html += `</tr>`;
+    html += `<li>${escapeHtml(label)} (응답 ${n}건)</li>`;
   });
-  html += `</tbody></table>`;
-  html += `<div style="margin-top:10px; padding:8px 10px; background:#fef3c7; border-radius:4px; font-size:11.5px; color:#92400e; line-height:1.5;">
-    💡 <b>삭제 후엔 반드시 [💾 data.js 다운로드]를 누르고 GitHub에 덮어쓰기</b> 해야 영구 적용됩니다.
-  </div>`;
+  html += '</ul>';
   box.innerHTML = html;
-};
-
-// 분기 삭제 함수
-window.deletePeriod = function(periodId, periodLabel) {
-  const isCurrent = (periodId === window.CURRENT_PERIOD_ID);
-  let confirmMsg = `'${periodLabel}' 분기를 삭제하시겠습니까?\n\n`;
-  if (isCurrent) {
-    confirmMsg += `⚠️ 이 분기는 현재 분기입니다. 삭제하면 다른 분기 중 하나가 자동으로 현재 분기가 됩니다.\n\n`;
-  }
-  confirmMsg += `※ 화면에서만 삭제됩니다. 영구 적용하려면 [💾 data.js 다운로드] 후 GitHub에 덮어쓰기 해야 합니다.`;
-  if (!confirm(confirmMsg)) return;
-  
-  // SURVEYS에서 삭제
-  if (window.SURVEYS && window.SURVEYS[periodId]) {
-    delete window.SURVEYS[periodId];
-  }
-  // PERIODS에서도 삭제
-  const idx = PERIODS.findIndex(p => p.id === periodId);
-  if (idx >= 0) PERIODS.splice(idx, 1);
-  
-  // 현재 분기였으면 다른 분기로 자동 전환
-  if (isCurrent) {
-    const remaining = Object.keys(window.SURVEYS).filter(id => id !== '__none__').sort();
-    if (remaining.length > 0) {
-      const newCurrentId = remaining[remaining.length - 1]; // 가장 최근 ID
-      window.CURRENT_PERIOD_ID = newCurrentId;
-      window.SURVEY_DATA = window.SURVEYS[newCurrentId];
-      window.D = D = window.SURVEYS[newCurrentId];
-      PERIODS.forEach(p => { p.isCurrent = (p.id === newCurrentId); });
-      const newPeriod = PERIODS.find(p => p.id === newCurrentId);
-      const brandPeriod = document.getElementById('brandPeriod');
-      if (brandPeriod && newPeriod) brandPeriod.textContent = newPeriod.label;
-      toast(`🗑️ '${periodLabel}' 삭제됨. 현재 분기: ${newPeriod ? newPeriod.label : newCurrentId}`);
-    } else {
-      // 분기가 0개가 됨 - 빈 상태
-      window.CURRENT_PERIOD_ID = '__none__';
-      toast(`🗑️ 모든 분기가 삭제되었습니다.`);
-    }
-  } else {
-    toast(`🗑️ '${periodLabel}' 삭제됨`);
-  }
-  
-  // UI 갱신
-  renderPeriodSelector();
-  refreshDataJsStatus();
-  const activeTab = document.querySelector('.nav-item.active');
-  if (activeTab && window.SURVEY_DATA) renderTab(activeTab.dataset.tab);
-};
-
-// 분기를 현재 분기로 설정
-window.setCurrentPeriod = function(periodId) {
-  if (!window.SURVEYS[periodId]) return;
-  window.CURRENT_PERIOD_ID = periodId;
-  window.SURVEY_DATA = window.SURVEYS[periodId];
-  window.D = D = window.SURVEYS[periodId];
-  PERIODS.forEach(p => { p.isCurrent = (p.id === periodId); });
-  const period = PERIODS.find(p => p.id === periodId);
-  const brandPeriod = document.getElementById('brandPeriod');
-  if (brandPeriod && period) brandPeriod.textContent = period.label;
-  toast(`✅ 현재 분기 변경: ${period ? period.label : periodId}`);
-  renderPeriodSelector();
-  refreshDataJsStatus();
-  const activeTab = document.querySelector('.nav-item.active');
-  if (activeTab) renderTab(activeTab.dataset.tab);
 };
 
 window.downloadDataJs = function() {
@@ -2939,8 +2893,7 @@ window.downloadDataJs = function() {
     // __none__ 키는 빼고 저장
     const cleanSurveys = {};
     ids.forEach(id => { cleanSurveys[id] = window.SURVEYS[id]; });
-    const meta = { current_period_id: window.CURRENT_PERIOD_ID || null };
-    const header = `// 강안교육 만족도 조사 - 데이터 파일\n// 생성일: ${new Date().toLocaleString('ko-KR')}\n// 현재 분기: ${meta.current_period_id || '미설정'}\n// 등록 분기: ${ids.length}개\n\nwindow.SURVEYS_META = ${JSON.stringify(meta)};\nwindow.SURVEYS_EXTERNAL = `;
+    const header = `// 강안교육 만족도 조사 - 데이터 파일\n// 생성일: ${new Date().toLocaleString('ko-KR')}\n\nwindow.SURVEYS_EXTERNAL = `;
     const fullContent = header + JSON.stringify(cleanSurveys, null, 1) + `;\n`;
     const blob = new Blob([fullContent], { type: 'application/javascript;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -2949,7 +2902,7 @@ window.downloadDataJs = function() {
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     const sizeKB = (fullContent.length / 1024).toFixed(0);
-    toast(`✅ data.js 다운로드 완료 (${sizeKB} KB) — GitHub에 덮어쓰기 하세요`);
+    toast(`✅ data.js 다운로드 완료 (${sizeKB} KB)`);
   } catch (e) {
     console.error(e);
     alert('다운로드 실패: ' + e.message);
@@ -7546,16 +7499,16 @@ function renderSettings(root) {
     </div>
 
     <!-- 💾 data.js 다운로드 -->
-    <div class="card" style="display: ${activeSec === 'period' ? 'block' : 'none'}; background: #fef3c7; border-left: 4px solid #d97706;" data-auto-refresh-status="1">
-      <h2 class="card-title">💾 data.js로 저장 <span class="card-sub">분기 관리 · 삭제 · 영구 저장</span></h2>
+    <div class="card" style="display: ${activeSec === 'period' ? 'block' : 'none'}; background: #fef3c7; border-left: 4px solid #d97706;">
+      <h2 class="card-title">💾 data.js로 저장 <span class="card-sub">현재 등록된 분기를 파일로</span></h2>
       <div style="font-size:12px; color:var(--ink-3); margin: 4px 0 12px; line-height:1.55;">
-        화면에서 등록·삭제한 분기는 페이지 닫으면 사라집니다. <b>영구 보관하려면 data.js로 저장 후 GitHub에 업로드하세요.</b>
+        업로드한 데이터는 페이지 닫으면 사라집니다. 영구 보관하려면 data.js로 저장 후 GitHub에 업로드하세요.
       </div>
       <div id="dataJsStatusBox" style="font-size: 11.5px; padding: 8px 12px; background: #fff; border: 1px solid #fcd34d; border-radius: 4px; margin-bottom: 10px; line-height: 1.6;">
-        <span style="color:#888;">로딩 중...</span>
+        <span style="color:#888;">[새로고침] 버튼을 눌러 현재 분기를 확인하세요.</span>
       </div>
       <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;">
-        <button class="btn" onclick="refreshDataJsStatus()" style="font-size: 12px; padding: 7px 14px;">🔄 목록 새로고침</button>
+        <button class="btn" onclick="refreshDataJsStatus()" style="font-size: 12px; padding: 7px 14px;">🔄 새로고침</button>
         <button class="btn btn-primary" onclick="downloadDataJs()" style="font-size: 12px; padding: 7px 14px; background: #d97706; border-color: #d97706;">💾 data.js 다운로드</button>
       </div>
     </div>
@@ -7924,12 +7877,6 @@ function renderSettings(root) {
       <button class="btn btn-secondary" onclick="if(confirm('⚠ 모든 설정을 기본값으로 초기화하시겠습니까?\\n\\n분기·기준·매뉴얼·직원·담당이 모두 시제품 초기값으로 복원됩니다. (피드백·코멘트는 그대로)')) { resetSettings(); renderTab('settings'); toast('초기화됨'); }" style="font-size: 12px; padding: 6px 14px; flex-shrink: 0;">전체 초기화</button>
     </div>
   `;
-  // 분기 관리 카드 자동 갱신 (분기 관리 섹션 렌더 직후)
-  setTimeout(() => {
-    if (document.querySelector('[data-auto-refresh-status="1"]')) {
-      if (typeof window.refreshDataJsStatus === 'function') window.refreshDataJsStatus();
-    }
-  }, 100);
 }
 
 // 설정 페이지 영역 전환
