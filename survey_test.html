@@ -367,9 +367,15 @@
 window.SURVEYS = (window.SURVEYS_EXTERNAL && Object.keys(window.SURVEYS_EXTERNAL).length > 0)
   ? window.SURVEYS_EXTERNAL : {};
 window.__RAW_XLSX_B64__ = window.RAW_XLSX_B64_EXTERNAL || "";
-// 가장 최근 분기 자동 선택 (data.js에 들어있는 분기 중)
+// SURVEYS_META: data.js에 저장된 메타 정보 (현재 분기 ID 등)
+const _meta = window.SURVEYS_META || {};
 const _ids = Object.keys(window.SURVEYS).sort();
-window.CURRENT_PERIOD_ID = _ids.length > 0 ? _ids[_ids.length - 1] : '__none__';
+// 현재 분기 결정: 1순위 SURVEYS_META.current_period_id, 2순위 가장 최근 ID
+if (_meta.current_period_id && window.SURVEYS[_meta.current_period_id]) {
+  window.CURRENT_PERIOD_ID = _meta.current_period_id;
+} else {
+  window.CURRENT_PERIOD_ID = _ids.length > 0 ? _ids[_ids.length - 1] : '__none__';
+}
 window.SURVEY_DATA = window.SURVEYS[window.CURRENT_PERIOD_ID];
 let D = window.SURVEY_DATA;
 
@@ -403,7 +409,12 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
     if (valid.length === 0) return 0;
     return valid.reduce((s, v) => s + v, 0) / valid.length;
   };
-  const round2 = (n) => Math.round(n * 1000) / 1000;
+  // round2: 진짜 소수점 2자리 반올림 (엑셀과 동일한 결과)
+  // 부동소수점 오차 보정 위해 epsilon 추가 (Math.round(4.755 * 100) → 4.755가 사실 4.7549999...라서 475 나오는 문제 방지)
+  const round2 = (n) => {
+    if (n === null || n === undefined || isNaN(n)) return n;
+    return Math.round((n + Number.EPSILON) * 100) / 100;
+  };
   // 한글 응답 → 숫자 변환 (구글 폼 응답 호환)
   const KOREAN_TO_NUM = {
     '매우 그렇다': 5,
@@ -566,14 +577,14 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
     { roomCol: '수업이 진행되는 강의실을 선택해 주십시오. 6', type: '국수영',
       qs: ksy('6'),
       freeCol: '8) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 6' },
-    // 강의실 7~8: 탐구 (학습상담/피드백 없음, 교재 컬럼명도 다름)
+    // 강의실 7~8: 탐구 (학습상담/피드백 없음, 교재 컬럼명도 다름 - "새벽깨기 문제를 포함하여" 포함)
     { roomCol: '수업이 진행되는 강의실을 선택해 주십시오. \n강의실은 3/17(화), 3/19(목) 기준입니다. 바뀐 강의실에 유의해주십시오.', type: '탐구',
       qs: {
         '수업운영': '1) 선생님의 전반적인 수업 운영에 만족하십니까? 7',
         '질문답변': '2) 선생님은 질문에 성실히 답변해주셨습니까? 7',
         'P/F테스트': '3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까? 7',
         '과제관리': '4) 선생님의 과제 검사 및 관리에 만족하십니까? 7',
-        '교재': '5) 교재에 만족하십니까?',
+        '교재': '5) 새벽깨기 문제를 포함하여, 교재에 만족하십니까?',
       },
       freeCol: '6) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?' },
     { roomCol: '수업이 진행되는 강의실을 선택해 주십시오. \n강의실은 3/17(화), 3/19(목) 기준입니다. 바뀐 강의실에 유의해주십시오. 2', type: '탐구',
@@ -582,7 +593,7 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
         '질문답변': '2) 선생님은 질문에 성실히 답변해주셨습니까? 8',
         'P/F테스트': '3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까? 8',
         '과제관리': '4) 선생님의 과제 검사 및 관리에 만족하십니까? 8',
-        '교재': '5) 교재에 만족하십니까? 2',
+        '교재': '5) 새벽깨기 문제를 포함하여, 교재에 만족하십니까? 2',
       },
       freeCol: '6) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 2' },
     // 논술: roomCol 다름, 질문도 다름
@@ -1246,64 +1257,185 @@ function seededRand(seed, n) {
   const x = Math.sin(s) * 10000;
   return Math.abs(x - Math.floor(x));
 }
-// 시계열 생성: 마지막 = 현재 실제 점수, 과거 = 시드 기반 변동
-function genHistory(name, currentScore) {
-  const series = [];
-  for (let i = 0; i < PERIODS.length - 1; i++) {
-    const noise = (seededRand(name, i) - 0.5) * 0.28;
-    const trend = -0.12 + (i / (PERIODS.length - 1)) * 0.10; // 살짝 상승 추세
-    series.push(Math.max(3.5, Math.min(5.0, currentScore + trend + noise)));
-  }
-  series.push(currentScore);
-  return series.map(s => Math.round(s * 100) / 100);
+
+// 분기별 추이 데이터: 현재 분기 = 실제 점수, 과거 분기 = SURVEYS에 저장된 진짜 데이터 (없으면 null)
+// (예전엔 가짜 노이즈로 채웠으나 보스 지시로 빈 깡통 처리)
+function genHistory(name, currentScore, kind) {
+  // kind: 'teacher' | 'haksa' | 'homeroom' | 'section' | undefined
+  // 같은 이름의 과거 분기 데이터를 SURVEYS에서 찾아본다
+  const series = PERIODS.map(p => {
+    if (p.isCurrent) return currentScore;
+    if (p.future) return null;
+    // 과거 분기: SURVEYS[p.id]가 있으면 거기서 같은 이름의 점수 찾기
+    const past = window.SURVEYS && window.SURVEYS[p.id];
+    if (!past) return null;
+    if (kind === 'teacher' && past.teachers) {
+      const t = past.teachers.find(x => x.teacher === name);
+      return t ? t.overall : null;
+    }
+    if (kind === 'haksa' && past.haksa && past.haksa.list) {
+      const h = past.haksa.list.find(x => x.name === name);
+      return h ? h.overall : null;
+    }
+    if (kind === 'homeroom' && past.homerooms) {
+      const h = past.homerooms.find(x => x.teacher === name);
+      return h ? h.overall : null;
+    }
+    if (kind === 'section' && past.sections) {
+      const s = past.sections.find(x => x.sec === name);
+      return s ? s.avg : null;
+    }
+    return null;
+  });
+  return series;
+}
+
+// === 같은 분기·차수에서 같은 강사가 여러 대상(정규/선행/윈터)에 출연할 때 점수 모음 ===
+// 예: 2027학년도 1학기 1차 정규/선행/윈터에 김선생님이 모두 있으면 3개 점수 + 평균
+function getTeacherCrossTargetScores(teacherName, currentPeriodId) {
+  // 현재 분기와 같은 (학년도-학기-차수)인 다른 대상 분기 찾기
+  // periodId 형식: "2027-1-1-정규" → prefix "2027-1-1"
+  if (!currentPeriodId) return [];
+  const parts = currentPeriodId.split('-');
+  if (parts.length < 4) return []; // 옛날 형식 분기는 대상 비교 불가
+  const prefix = parts.slice(0, 3).join('-'); // "2027-1-1"
+  
+  const matches = [];
+  Object.keys(window.SURVEYS || {}).forEach(pid => {
+    if (pid === '__none__') return;
+    if (!pid.startsWith(prefix + '-')) return; // 같은 분기 다른 대상만
+    const survey = window.SURVEYS[pid];
+    if (!survey || !survey.teachers) return;
+    const t = survey.teachers.find(x => x.teacher === teacherName);
+    if (!t) return;
+    const target = pid.split('-').slice(3).join('-'); // "정규" / "선행" / "윈터"
+    matches.push({
+      periodId: pid,
+      periodLabel: survey.meta?.period || pid,
+      target,
+      overall: t.overall,
+      n_students: t.n_students || 0,
+      n_responses: t.n_responses || 0,
+      isCurrent: pid === currentPeriodId,
+    });
+  });
+  // 정규 → 선행 → 윈터 순서
+  const order = { '정규': 0, '선행': 1, '윈터': 2 };
+  matches.sort((a, b) => (order[a.target] ?? 9) - (order[b.target] ?? 9));
+  return matches;
+}
+
+// 대상별 점수 카드 HTML 생성 (강사 모달 상단에 표시)
+function renderTeacherCrossTargetSummary(teacherName, currentPeriodId) {
+  const matches = getTeacherCrossTargetScores(teacherName, currentPeriodId);
+  if (matches.length <= 1) return ''; // 1개 이하면 표시 안 함 (의미 없음)
+  
+  // 응답수 가중 평균
+  const totalResp = matches.reduce((s, m) => s + (m.n_responses || 0), 0);
+  const weightedAvg = totalResp > 0
+    ? matches.reduce((s, m) => s + m.overall * (m.n_responses || 0), 0) / totalResp
+    : matches.reduce((s, m) => s + m.overall, 0) / matches.length;
+  
+  const colors = { '정규': '#059669', '선행': '#7c3aed', '윈터': '#0891b2' };
+  
+  return `
+    <div style="margin: 12px 0; padding: 14px; background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%); border-radius: 8px; border-left: 4px solid var(--accent);">
+      <div style="font-size: 12.5px; font-weight: 700; color: var(--ink); margin-bottom: 10px; display:flex; align-items:center; gap:6px;">
+        🎯 이번 차수 대상별 점수
+        <span style="font-size: 10.5px; color: var(--ink-3); font-weight: 500;">(같은 차수의 정규/선행/윈터 비교)</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(${matches.length + 1}, 1fr); gap: 8px;">
+        ${matches.map(m => `
+          <div style="background: #fff; padding: 10px; border-radius: 6px; border: 1.5px solid ${m.isCurrent ? colors[m.target] || 'var(--accent)' : '#e5e7eb'}; ${m.isCurrent ? 'box-shadow: 0 2px 6px rgba(0,0,0,0.08);' : ''}">
+            <div style="font-size: 10.5px; color: ${colors[m.target] || 'var(--ink-2)'}; font-weight: 700; margin-bottom: 3px;">
+              ${escapeHtml(m.target)}${m.isCurrent ? ' <span style="font-size:9px; color: var(--accent);">●</span>' : ''}
+            </div>
+            <div style="font-size: 22px; font-weight: 700; color: var(--ink);">${m.overall.toFixed(2)}</div>
+            <div style="font-size: 10px; color: var(--ink-3); margin-top: 2px;">응답 ${m.n_responses}건</div>
+          </div>
+        `).join('')}
+        <div style="background: #fff8e1; padding: 10px; border-radius: 6px; border: 1.5px dashed #f59e0b;">
+          <div style="font-size: 10.5px; color: #92400e; font-weight: 700; margin-bottom: 3px;">
+            🔢 평균
+          </div>
+          <div style="font-size: 22px; font-weight: 700; color: #92400e;">${weightedAvg.toFixed(2)}</div>
+          <div style="font-size: 10px; color: #92400e; margin-top: 2px;">응답수 가중</div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 // 시계열 SVG 라인차트 (현재 강사 + 학원평균 점선)
+// null 값(과거 데이터 없음)을 안전하게 처리
 function svgTrendChart(series, avgSeries, w, h) {
+  // null이 아닌 인덱스만 추리기
+  const validIdx = series.map((v, i) => v != null && !isNaN(v) ? i : -1).filter(i => i !== -1);
+  if (validIdx.length === 0) {
+    return `<div style="text-align:center; padding:30px; color:var(--ink-3); font-size:12px;">표시할 분기 데이터가 없습니다.</div>`;
+  }
+  if (validIdx.length === 1) {
+    const i = validIdx[0];
+    return `<div style="text-align:center; padding:30px 12px; background:#fff; border-radius:6px;">
+      <div style="font-size:36px; font-weight:700; color:var(--ink); margin:6px 0;">${series[i].toFixed(2)}</div>
+      <div style="font-size:11px; color:var(--ink-3);">현재 분기 단일 점수 (과거 데이터 누적되면 추이 표시)</div>
+    </div>`;
+  }
   const min = 3.3, max = 5.0;
   const padX = 8, padY = 16;
-  const pts = (vals) => vals.map((v, i) => {
-    const x = padX + (i / (vals.length - 1)) * (w - 2 * padX);
+  const ptOf = (v, i, total) => {
+    const x = padX + (i / (total - 1)) * (w - 2 * padX);
     const y = h - padY - ((v - min) / (max - min)) * (h - 2 * padY);
     return [x, y];
-  });
-  const tPts = pts(series);
-  const aPts = avgSeries ? pts(avgSeries) : null;
+  };
+  // 유효한 점들만 path로 연결
+  const tPts = validIdx.map(i => ({ idx: i, ...{ xy: ptOf(series[i], i, series.length) } }));
+  const tPath = 'M ' + tPts.map(p => `${p.xy[0].toFixed(1)},${p.xy[1].toFixed(1)}`).join(' L ');
+  let aPath = '';
+  if (avgSeries) {
+    const aValid = avgSeries.map((v, i) => v != null && !isNaN(v) ? { i, xy: ptOf(v, i, avgSeries.length) } : null).filter(x => x);
+    if (aValid.length >= 2) {
+      aPath = 'M ' + aValid.map(p => `${p.xy[0].toFixed(1)},${p.xy[1].toFixed(1)}`).join(' L ');
+    }
+  }
   const baseY = h - padY - ((4.4 - min) / (max - min)) * (h - 2 * padY);
-  const tPath = 'M ' + tPts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' L ');
-  const aPath = aPts ? 'M ' + aPts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' L ') : '';
   return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" style="overflow:visible; width:100%; height:auto;">
     <line x1="${padX}" y1="${baseY}" x2="${w - padX}" y2="${baseY}" stroke="#d4d1c4" stroke-width="0.8" stroke-dasharray="2,3"/>
     <text x="${w - padX}" y="${baseY - 4}" text-anchor="end" font-size="9.5" fill="#8a8a84" font-family="Pretendard">평균 4.40</text>
     ${aPath ? `<path d="${aPath}" stroke="#b8b6ae" stroke-width="1.5" fill="none" stroke-dasharray="3,3"/>` : ''}
     <path d="${tPath}" stroke="#1f3864" stroke-width="2.4" fill="none"/>
-    ${tPts.map((p, i) => {
-      const isLast = i === tPts.length - 1;
-      return `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${isLast ? 4 : 3}" fill="${isLast ? '#1f3864' : '#fff'}" stroke="#1f3864" stroke-width="1.8"/>`;
+    ${tPts.map((p, k) => {
+      const isLast = k === tPts.length - 1;
+      return `<circle cx="${p.xy[0].toFixed(1)}" cy="${p.xy[1].toFixed(1)}" r="${isLast ? 4 : 3}" fill="${isLast ? '#1f3864' : '#fff'}" stroke="#1f3864" stroke-width="1.8"/>`;
     }).join('')}
-    ${tPts.map((p, i) => `<text x="${p[0].toFixed(1)}" y="${(p[1] - 9).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="600" fill="#1a1a1a" font-family="Pretendard">${series[i].toFixed(2)}</text>`).join('')}
+    ${tPts.map(p => `<text x="${p.xy[0].toFixed(1)}" y="${(p.xy[1] - 9).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="600" fill="#1a1a1a" font-family="Pretendard">${series[p.idx].toFixed(2)}</text>`).join('')}
   </svg>`;
 }
 
-// 시계열 추세 요약
+// 시계열 추세 요약 (과거 데이터 부족하면 빈 문자열)
 function trendSummary(series) {
-  const last = series[series.length - 1];
-  const prev = series[series.length - 2];
-  const first = series[0];
+  // null이 아닌 값들만
+  const valid = series.filter(v => v != null && !isNaN(v));
+  if (valid.length < 2) {
+    return ''; // 비교할 과거 데이터 없음
+  }
+  const last = valid[valid.length - 1];
+  const prev = valid[valid.length - 2];
+  const first = valid[0];
   const delta = last - prev;
   const longTerm = last - first;
   let summary = '';
-  if (longTerm >= 0.20) summary = `📈 6분기 동안 <b style="color:var(--good);">+${longTerm.toFixed(2)}</b> 꾸준히 상승`;
-  else if (longTerm >= 0.05) summary = `↗ 6분기 동안 <b style="color:var(--good);">+${longTerm.toFixed(2)}</b> 상승 추세`;
-  else if (longTerm <= -0.20) summary = `📉 6분기 동안 <b style="color:var(--danger);">${longTerm.toFixed(2)}</b> 큰 폭 하락`;
-  else if (longTerm <= -0.05) summary = `↘ 6분기 동안 <b style="color:var(--warn);">${longTerm.toFixed(2)}</b> 하락 추세`;
-  else summary = `↔ 6분기 동안 변동 ${longTerm >= 0 ? '+' : ''}${longTerm.toFixed(2)} 안정세`;
+  if (longTerm >= 0.20) summary = `📈 <b style="color:var(--good);">+${longTerm.toFixed(2)}</b> 꾸준히 상승`;
+  else if (longTerm >= 0.05) summary = `↗ <b style="color:var(--good);">+${longTerm.toFixed(2)}</b> 상승 추세`;
+  else if (longTerm <= -0.20) summary = `📉 <b style="color:var(--danger);">${longTerm.toFixed(2)}</b> 큰 폭 하락`;
+  else if (longTerm <= -0.05) summary = `↘ <b style="color:var(--warn);">${longTerm.toFixed(2)}</b> 하락 추세`;
+  else summary = `↔ 변동 ${longTerm >= 0 ? '+' : ''}${longTerm.toFixed(2)} 안정세`;
   if (delta <= -0.10) summary += ` · <b style="color:var(--danger);">전분기 대비 ${delta.toFixed(2)} 주의</b>`;
   if (delta >= 0.10) summary += ` · <b style="color:var(--good);">전분기 대비 +${delta.toFixed(2)} 개선</b>`;
   return summary;
 }
 
-// 시계열 표 렌더 (분기별)
+// 시계열 표 렌더 (분기별, null 안전)
 function renderTrendTable(series, label) {
   return `<table class="table" style="font-size:12.5px;">
     <thead><tr><th>분기</th><th style="text-align:right;">점수</th><th style="text-align:right;">전분기 대비</th><th style="text-align:right;">학원 평균 대비</th></tr></thead>
@@ -1311,13 +1443,14 @@ function renderTrendTable(series, label) {
       ${PERIODS.map((p, i) => {
         const cur = series[i];
         const prev = i > 0 ? series[i-1] : null;
-        const diff = prev !== null ? cur - prev : null;
-        const avgDiff = cur - OVERALL_HISTORY[i];
+        const diff = (cur != null && prev != null) ? cur - prev : null;
+        const overallI = OVERALL_HISTORY[i];
+        const avgDiff = (cur != null && overallI != null) ? cur - overallI : null;
         return `<tr ${p.isCurrent ? 'style="background:var(--accent-soft);"' : ''}>
           <td>${p.label}${p.isCurrent ? ' <b style="color:var(--accent); font-size:10.5px;">(현재)</b>' : ''}</td>
-          <td class="num" style="font-size:14px;">${cur.toFixed(2)}</td>
-          <td class="num" style="color: ${diff === null ? 'var(--ink-3)' : (diff >= 0 ? 'var(--good)' : 'var(--danger)')};">${diff === null ? '-' : ((diff >= 0 ? '+' : '') + diff.toFixed(2))}</td>
-          <td class="num" style="color: ${avgDiff >= 0 ? 'var(--good)' : 'var(--danger)'};">${avgDiff >= 0 ? '+' : ''}${avgDiff.toFixed(2)}</td>
+          <td class="num" style="font-size:14px;">${cur != null ? cur.toFixed(2) : '<span style="color:var(--ink-3);">-</span>'}</td>
+          <td class="num" style="color: ${diff == null ? 'var(--ink-3)' : (diff >= 0 ? 'var(--good)' : 'var(--danger)')};">${diff == null ? '-' : ((diff >= 0 ? '+' : '') + diff.toFixed(2))}</td>
+          <td class="num" style="color: ${avgDiff == null ? 'var(--ink-3)' : (avgDiff >= 0 ? 'var(--good)' : 'var(--danger)')};">${avgDiff == null ? '-' : ((avgDiff >= 0 ? '+' : '') + avgDiff.toFixed(2))}</td>
         </tr>`;
       }).join('')}
     </tbody>
@@ -1890,10 +2023,10 @@ window.printEvaluationReport = function(targetId, targetName, kind) {
         items.map(k => `<tr><td>${k}</td><td><b>${t[k] != null ? t[k].toFixed(2) : '-'}</b></td></tr>`).join('') +
         `</tbody></table>`;
       // 분기 추이
-      const history = genHistory(t.teacher, t.overall);
+      const history = genHistory(t.teacher, t.overall, 'teacher');
       trendSummaryText = trendSummary(history).replace(/<[^>]+>/g, '');
       trendSection = `<table class="score-tbl"><thead><tr><th>분기</th><th>종합 점수</th><th>학원 평균</th></tr></thead><tbody>` +
-        PERIODS.map((p, i) => `<tr ${p.isCurrent ? 'style="background:#fffbea; font-weight:600;"' : ''}><td>${p.label}${p.isCurrent ? ' (현재)' : ''}</td><td><b>${history[i].toFixed(2)}</b></td><td style="color:#888;">${OVERALL_HISTORY[i].toFixed(2)}</td></tr>`).join('') +
+        PERIODS.map((p, i) => `<tr ${p.isCurrent ? 'style="background:#fffbea; font-weight:600;"' : ''}><td>${p.label}${p.isCurrent ? ' (현재)' : ''}</td><td><b>${history[i] != null ? history[i].toFixed(2) : '-'}</b></td><td style="color:#888;">${OVERALL_HISTORY[i] != null ? OVERALL_HISTORY[i].toFixed(2) : '-'}</td></tr>`).join('') +
         `</tbody></table>`;
     }
   } else if (targetId.startsWith('homeroom_')) {
@@ -1912,10 +2045,10 @@ window.printEvaluationReport = function(targetId, targetName, kind) {
       scoreSection = `<table class="score-tbl"><thead><tr><th>평가 항목</th><th>점수</th></tr></thead><tbody>` +
         Object.entries(k.scores).map(([key, v]) => `<tr><td>${key}</td><td><b>${v.toFixed(2)}</b></td></tr>`).join('') +
         `</tbody></table>`;
-      const history = genHistory(k.name, k.overall);
+      const history = genHistory(k.name, k.overall, 'haksa');
       trendSummaryText = trendSummary(history).replace(/<[^>]+>/g, '');
       trendSection = `<table class="score-tbl"><thead><tr><th>분기</th><th>종합 점수</th><th>학사 평균</th></tr></thead><tbody>` +
-        PERIODS.map((p, i) => `<tr ${p.isCurrent ? 'style="background:#fffbea; font-weight:600;"' : ''}><td>${p.label}${p.isCurrent ? ' (현재)' : ''}</td><td><b>${history[i].toFixed(2)}</b></td><td style="color:#888;">${D.haksa.overall.toFixed(2)}</td></tr>`).join('') +
+        PERIODS.map((p, i) => `<tr ${p.isCurrent ? 'style="background:#fffbea; font-weight:600;"' : ''}><td>${p.label}${p.isCurrent ? ' (현재)' : ''}</td><td><b>${history[i] != null ? history[i].toFixed(2) : '-'}</b></td><td style="color:#888;">${D.haksa.overall.toFixed(2)}</td></tr>`).join('') +
         `</tbody></table>`;
     }
   }
@@ -2342,10 +2475,19 @@ function renderPeriodSelector() {
       const cls = ['period-item'];
       if (isActive) cls.push('active');
       if (isFuture) cls.push('future');
-      const label = p.label.replace(/^\d+년\s*/, ''); // "2026년 1차" → "1차"
+      // 라벨 단축: "2027학년도 1학기 1차 정규" → "1학기 1차 정규" / "2026년 1차" → "1차"
+      let label = p.label.replace(/^\d+학년도\s*/, '').replace(/^\d+년\s*/, '');
+      // 대상 강조 표시
       const handler = isFuture ? '' : `onclick="changePeriod('${p.id}')"`;
-      const tag = isFuture ? ' <span style="font-size:10px; color: var(--ink-3); margin-left: auto;">예정</span>' : '';
-      html += `<button class="${cls.join(' ')}" data-period-id="${p.id}" ${handler}><span class="dot"></span>${label}${tag}</button>`;
+      let tag = '';
+      if (isFuture) tag = ' <span style="font-size:10px; color: var(--ink-3); margin-left: auto;">예정</span>';
+      else if (isActive) tag = ' <span style="font-size:10px; color: var(--accent); font-weight:700; margin-left: auto;">●현재</span>';
+      // 대상별 색상 구분 (정규/선행/윈터)
+      let targetBadge = '';
+      if (p.target === '정규') targetBadge = '<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#059669; margin-right:4px;"></span>';
+      else if (p.target === '선행') targetBadge = '<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#7c3aed; margin-right:4px;"></span>';
+      else if (p.target === '윈터') targetBadge = '<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#0891b2; margin-right:4px;"></span>';
+      html += `<button class="${cls.join(' ')}" data-period-id="${p.id}" ${handler}><span class="dot"></span>${targetBadge}${escapeHtml(label)}${tag}</button>`;
     }
     html += `</div></div>`;
   }
@@ -2590,16 +2732,26 @@ function validatePeriodId(id) {
 }
 
 // 새 회차를 SURVEYS + PERIODS에 등록
-function registerNewPeriod(periodId, periodLabel, surveyData) {
+function registerNewPeriod(periodId, periodLabel, surveyData, opts) {
+  opts = opts || {};
   window.SURVEYS[periodId] = surveyData;
-  if (!PERIODS.find(p => p.id === periodId)) {
+  
+  // PERIODS에 추가 (이미 있으면 라벨·target만 갱신)
+  const existing = PERIODS.find(p => p.id === periodId);
+  if (existing) {
+    existing.label = periodLabel;
+    if (opts.target) existing.target = opts.target;
+    if (opts.year) existing.year = opts.year;
+    existing.future = false;
+  } else {
     const yearMatch = periodId.match(/^(\d{4})/);
-    const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+    const year = opts.year || (yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear());
     PERIODS.push({
       id: periodId,
       label: periodLabel,
       date: '업로드',
       year,
+      target: opts.target || null,
       isCurrent: false,
       future: false,
     });
@@ -2608,12 +2760,21 @@ function registerNewPeriod(periodId, periodLabel, surveyData) {
       return a.id.localeCompare(b.id);
     });
   }
-  // 데이터가 비어있거나 "데이터 없음" 상태면 → 새 분기를 자동 활성화
-  if (!D || !D.meta || D.meta.period === '데이터 없음') {
+  
+  // setCurrent: 보스가 명시적으로 "이 분기를 현재로" 체크한 경우
+  // 또는 데이터가 비어있는 초기 상태면 자동으로 현재 분기 설정
+  const isInitial = (!D || !D.meta || D.meta.period === '데이터 없음');
+  if (opts.setCurrent || isInitial) {
+    // 다른 모든 분기의 isCurrent를 false로
+    PERIODS.forEach(p => { p.isCurrent = (p.id === periodId); });
     window.CURRENT_PERIOD_ID = periodId;
     window.SURVEY_DATA = surveyData;
     window.D = D = surveyData;
+    // 상단 라벨도 갱신
+    const brandPeriod = document.getElementById('brandPeriod');
+    if (brandPeriod) brandPeriod.textContent = periodLabel;
   }
+  
   renderPeriodSelector();
   const activeTab = document.querySelector('.nav-item.active');
   if (activeTab) renderTab(activeTab.dataset.tab);
@@ -2672,59 +2833,95 @@ window.oneClickConvert = async function() {
   const fileInput = document.getElementById('oneClick_files');
   const statusBox = document.getElementById('oneClickStatus');
   if (!fileInput || !fileInput.files || fileInput.files.length === 0) { alert('엑셀 파일을 선택하세요.'); return; }
+  
+  // 드롭다운 값 읽기 (보스가 명시적으로 선택한 분기·대상)
+  const year = document.getElementById('oneClick_year').value;
+  const semester = document.getElementById('oneClick_semester').value;
+  const round = document.getElementById('oneClick_round').value;
+  const target = document.getElementById('oneClick_target').value;
+  const setCurrent = document.getElementById('oneClick_setCurrent').checked;
+  
+  // 분기 ID·라벨 생성 (예: "2027-1-1-정규" / "2027학년도 1학기 1차 정규")
+  const periodId = `${year}-${semester}-${round}-${target}`;
+  const periodLabel = `${year}학년도 ${semester}학기 ${round}차 ${target}`;
+  
+  // 이미 있는 분기인지 확인
+  if (window.SURVEYS && window.SURVEYS[periodId]) {
+    if (!confirm(`⚠️ '${periodLabel}'은(는) 이미 등록되어 있습니다.\n\n덮어쓰시겠습니까?\n(취소: 작업 중단)`)) {
+      return;
+    }
+  }
+  
   const files = Array.from(fileInput.files);
   statusBox.style.display = 'block';
   statusBox.innerHTML = `<b>🔄 SheetJS 로딩 중...</b>`;
   try { await ensureSheetJS(); }
   catch (e) { statusBox.innerHTML = `<b style="color:#dc2626;">❌ SheetJS 로드 실패: ${e.message}</b>`; return; }
   
-  function parsePeriodFromFilename(filename) {
-    const base = filename.replace(/\.(xlsx|xls)$/i, '');
-    let m = base.match(/(\d{4})[_\-\s.](\d)[_\-\s.](\d)/);
-    if (m) return { id: `${m[1]}-${m[2]}-${m[3]}`, label: `${m[1]}년 ${m[2]}학기 ${m[3]}차` };
-    m = base.match(/(\d{4})년?\s*(\d)학기\s*(\d)차/);
-    if (m) return { id: `${m[1]}-${m[2]}-${m[3]}`, label: `${m[1]}년 ${m[2]}학기 ${m[3]}차` };
-    const safeName = base.replace(/[^a-zA-Z0-9가-힣\-_]/g, '_');
-    return { id: safeName, label: base };
-  }
-  
-  const results = [];
-  let successCount = 0, failCount = 0;
+  // 여러 파일은 같은 분기·대상으로 합쳐서 등록
+  let allRows = [];
+  const fileResults = [];
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
-    const periodInfo = parsePeriodFromFilename(file.name);
     statusBox.innerHTML = `<b>🔄 처리 중 (${i+1}/${files.length})</b><br>현재 파일: <code>${escapeHtml(file.name)}</code>`;
     try {
       const arrayBuffer = await file.arrayBuffer();
       const wb = XLSX.read(arrayBuffer, { type: 'array' });
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-      if (!rows || rows.length === 0) { results.push({ file: file.name, status: 'fail', reason: '데이터 없음' }); failCount++; continue; }
-      const rawResponses = rows.map(r => ({ raw: r }));
-      const periodMeta = { period: periodInfo.label, period_id: periodInfo.id, n_target: rows.length, submitted_at: new Date().toISOString() };
-      const surveyData = window.computeFromRawResponses(rawResponses, periodMeta);
-      registerNewPeriod(periodInfo.id, periodInfo.label, surveyData);
-      results.push({ file: file.name, period: periodInfo.label, status: 'ok', n_responses: rows.length });
-      successCount++;
+      if (!rows || rows.length === 0) { fileResults.push({ file: file.name, status: 'fail', reason: '데이터 없음' }); continue; }
+      allRows = allRows.concat(rows);
+      fileResults.push({ file: file.name, status: 'ok', n: rows.length });
     } catch (e) {
       console.error('파일 처리 실패:', file.name, e);
-      results.push({ file: file.name, status: 'fail', reason: e.message });
-      failCount++;
+      fileResults.push({ file: file.name, status: 'fail', reason: e.message });
     }
   }
   
-  let html = `<b>📊 처리 완료: 성공 ${successCount}개 / 실패 ${failCount}개</b><br>`;
-  results.forEach(r => {
-    if (r.status === 'ok') html += `✅ <b>${escapeHtml(r.period)}</b> (응답 ${r.n_responses}건)<br>`;
-    else html += `❌ <b style="color:#dc2626;">${escapeHtml(r.file)}</b>: ${escapeHtml(r.reason)}<br>`;
+  if (allRows.length === 0) {
+    statusBox.innerHTML = `<b style="color:#dc2626;">❌ 유효한 응답이 하나도 없습니다.</b><br>` +
+      fileResults.map(r => `${r.status === 'ok' ? '✅' : '❌'} ${escapeHtml(r.file)}${r.reason ? ': ' + escapeHtml(r.reason) : ''}`).join('<br>');
+    return;
+  }
+  
+  // 분기·대상으로 등록
+  let registered = false;
+  try {
+    const rawResponses = allRows.map(r => ({ raw: r }));
+    const periodMeta = {
+      period: periodLabel,
+      period_id: periodId,
+      target: target,  // 대상 정보 추가 (정규/선행/윈터)
+      n_target: allRows.length,
+      submitted_at: new Date().toISOString()
+    };
+    const surveyData = window.computeFromRawResponses(rawResponses, periodMeta);
+    // surveyData.meta에 target 추가 보장
+    if (surveyData.meta) surveyData.meta.target = target;
+    registerNewPeriod(periodId, periodLabel, surveyData, { setCurrent, target, year: parseInt(year) });
+    registered = true;
+  } catch (e) {
+    console.error('등록 실패:', e);
+    statusBox.innerHTML = `<b style="color:#dc2626;">❌ 분기 등록 실패: ${escapeHtml(e.message)}</b>`;
+    return;
+  }
+  
+  // 결과 표시 + data.js 다운로드
+  let html = `<b>📊 처리 완료: 응답 ${allRows.length}건</b><br>`;
+  html += `📌 등록: <b>${escapeHtml(periodLabel)}</b>${setCurrent ? ' <span style="color:#059669; font-weight:700;">(현재 분기로 설정됨)</span>' : ''}<br>`;
+  fileResults.forEach(r => {
+    if (r.status === 'ok') html += `✅ ${escapeHtml(r.file)} (${r.n}건)<br>`;
+    else html += `❌ <span style="color:#dc2626;">${escapeHtml(r.file)}</span>: ${escapeHtml(r.reason)}<br>`;
   });
   
-  if (successCount > 0) {
+  if (registered) {
     setTimeout(() => {
       try {
         const cleanSurveys = {};
         Object.keys(window.SURVEYS).filter(id => id !== '__none__').forEach(id => { cleanSurveys[id] = window.SURVEYS[id]; });
-        const header = `// 강안교육 만족도 조사 - 데이터 파일\n// 생성일: ${new Date().toLocaleString('ko-KR')}\n\nwindow.SURVEYS_EXTERNAL = `;
+        // 현재 분기 ID도 같이 저장 (덮어쓰기 후에도 보존되도록)
+        const meta = { current_period_id: window.CURRENT_PERIOD_ID || null };
+        const header = `// 강안교육 만족도 조사 - 데이터 파일\n// 생성일: ${new Date().toLocaleString('ko-KR')}\n// 현재 분기: ${meta.current_period_id || '미설정'}\n\nwindow.SURVEYS_META = ${JSON.stringify(meta)};\nwindow.SURVEYS_EXTERNAL = `;
         const fullContent = header + JSON.stringify(cleanSurveys, null, 1) + `;\n`;
         const blob = new Blob([fullContent], { type: 'application/javascript;charset=utf-8' });
         const url = URL.createObjectURL(blob);
@@ -2733,7 +2930,7 @@ window.oneClickConvert = async function() {
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         const sizeKB = (fullContent.length / 1024).toFixed(0);
-        statusBox.innerHTML = html + `<div style="margin-top:10px; padding:10px; background:#10b981; color:white; border-radius:4px;"><b>🎉 data.js 다운로드 완료!</b> (${sizeKB} KB)<br><span style="font-size:11.5px;">📤 다운받은 data.js를 GitHub의 admin.html과 같은 폴더에 업로드하세요.</span></div>`;
+        statusBox.innerHTML = html + `<div style="margin-top:10px; padding:10px; background:#10b981; color:white; border-radius:4px;"><b>🎉 data.js 다운로드 완료!</b> (${sizeKB} KB)<br><span style="font-size:11.5px;">📤 다운받은 data.js를 GitHub에 덮어쓰기 → 새로고침하면 적용됩니다.</span></div>`;
         fileInput.value = '';
       } catch (e) { console.error(e); statusBox.innerHTML += `<div style="color:#dc2626;">❌ ${e.message}</div>`; }
     }, 500);
@@ -2741,6 +2938,24 @@ window.oneClickConvert = async function() {
     statusBox.innerHTML = html;
   }
 };
+
+// 드롭다운 변경 시 미리보기 갱신 (DOM 준비된 후 등록)
+window.addEventListener('DOMContentLoaded', () => {
+  ['oneClick_year', 'oneClick_semester', 'oneClick_round', 'oneClick_target'].forEach(id => {
+    document.addEventListener('change', (e) => {
+      if (e.target && e.target.id === id) {
+        const y = document.getElementById('oneClick_year')?.value;
+        const s = document.getElementById('oneClick_semester')?.value;
+        const r = document.getElementById('oneClick_round')?.value;
+        const t = document.getElementById('oneClick_target')?.value;
+        const preview = document.getElementById('oneClick_preview');
+        if (preview && y && s && r && t) {
+          preview.innerHTML = `📌 등록 분기: <b>${y}학년도 ${s}학기 ${r}차 ${t}</b>`;
+        }
+      }
+    });
+  });
+});
 
 // SheetJS 동적 로드
 async function ensureSheetJS() {
@@ -3896,8 +4111,7 @@ window.openTeacherModal = function(name) {
   const items = teacherScoreItems(t);
   const targetId = 'teacher_' + t.teacher;
   const comments = t.comments || [];
-  const history = genHistory(t.teacher, t.overall);
-  // 모달 열 때마다 반 필터 초기화 (전체로)
+  const history = genHistory(t.teacher, t.overall, 'teacher');
   const safeName0 = t.teacher.replace(/[^a-zA-Z가-힣0-9]/g, '_');
   sessionStorage.removeItem('class_filter_' + safeName0);
   // 과목 + 순위 계산
@@ -3935,6 +4149,8 @@ window.openTeacherModal = function(name) {
         <div class="stat-box"><div class="stat-label">응답수</div><div class="stat-value">${t.n_responses}</div></div>
         <div class="stat-box"><div class="stat-label">등급</div><div class="stat-value"><span class="pill ${pillCls}" style="font-size:13px; padding:4px 10px;">${pillText}</span></div></div>
       </div>
+
+      ${renderTeacherCrossTargetSummary(t.teacher, window.CURRENT_PERIOD_ID)}
 
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 6px;">
         <div style="background: var(--bg); border-radius: 6px; padding: 11px 14px; border-left: 4px solid ${subjColor};">
@@ -4024,7 +4240,7 @@ window.openTeacherModal = function(name) {
       <details style="margin: 12px 0;" open>
         <summary style="cursor:pointer; font-size:13.5px; font-weight:700; color:var(--ink-2); padding: 8px 0; display:flex; align-items:center; gap:8px; list-style:none;">
           <span style="display:inline-block; width:14px;">▶</span>분기별 추이
-          <span style="font-size:11px; font-weight:500; color:var(--ink-3); font-style:italic;">시제품: 과거 5분기 가상 + 현재</span>
+          <span style="font-size:11px; font-weight:500; color:var(--ink-3); font-style:italic;">과거 분기 데이터가 누적되면 자동으로 추이가 그려집니다</span>
         </summary>
         <div style="background:var(--bg); border-radius:7px; padding:12px; margin-top:6px;">
           <div style="font-size:11px; color:var(--ink-3); margin-bottom:8px; line-height:1.5;">
@@ -4224,8 +4440,8 @@ window.openHomeroomModal = function(name) {
   if (!h) return;
   const targetId = 'homeroom_' + h.teacher;
   const safeName = h.teacher.replace(/[^a-zA-Z가-힣0-9]/g, '_');
-  // 분기 추이 시뮬 (강사와 동일 방식)
-  const history = generateHistory(h.overall);
+  // 분기 추이 (담임 - 과거 데이터 있을 때만)
+  const history = genHistory(h.teacher, h.overall, 'homeroom');
 
   showModal(`
     <div class="modal-head">
@@ -4247,7 +4463,7 @@ window.openHomeroomModal = function(name) {
       <details style="margin: 14px 0;" open>
         <summary style="cursor:pointer; font-size:13.5px; font-weight:700; color:var(--ink-2); padding: 8px 0; display:flex; align-items:center; gap:8px; list-style:none;">
           <span style="display:inline-block; width:14px;">▶</span>분기별 추이
-          <span style="font-size:11px; font-weight:500; color:var(--ink-3); font-style:italic;">시제품: 과거 5분기 가상 + 현재</span>
+          <span style="font-size:11px; font-weight:500; color:var(--ink-3); font-style:italic;">과거 분기 데이터가 누적되면 자동으로 추이가 그려집니다</span>
         </summary>
         <div style="background:var(--bg); border-radius:7px; padding:12px; margin-top:6px;">
           <div style="font-size:11px; color:var(--ink-3); margin-bottom:8px; line-height:1.5;">
@@ -4317,7 +4533,7 @@ window.openHaksaModal = function(name) {
   if (!h) return;
   const [pillText, pillCls] = gradeText(h.overall);
   const targetId = 'haksa_' + h.name;
-  const history = genHistory(h.name, h.overall);
+  const history = genHistory(h.name, h.overall, 'haksa');
 
   showModal(`
     <div class="modal-head">
@@ -4339,7 +4555,7 @@ window.openHaksaModal = function(name) {
       <details style="margin: 12px 0;" open>
         <summary style="cursor:pointer; font-size:13.5px; font-weight:700; color:var(--ink-2); padding: 8px 0; display:flex; align-items:center; gap:8px; list-style:none;">
           <span style="display:inline-block; width:14px;">▶</span>분기별 추이
-          <span style="font-size:11px; font-weight:500; color:var(--ink-3); font-style:italic;">시제품: 과거 5분기 가상 + 현재</span>
+          <span style="font-size:11px; font-weight:500; color:var(--ink-3); font-style:italic;">과거 분기 데이터가 누적되면 자동으로 추이가 그려집니다</span>
         </summary>
         <div style="background:var(--bg); border-radius:7px; padding:12px; margin-top:6px;">
           <div style="font-size:11px; color:var(--ink-3); margin-bottom:8px; line-height:1.5;">
@@ -4727,26 +4943,26 @@ function refreshPeriodSelector(teacherName) {
   if (chartBox) {
     const teacher = D.teachers.find(t => t.teacher === teacherName);
     if (teacher) {
-      const history = generateHistory(teacher.overall);
+      const history = genHistory(teacherName, teacher.overall, 'teacher');
       chartBox.innerHTML = renderSelectedPeriodChart(history, OVERALL_HISTORY, PERIODS, sel, teacherName);
     } else {
       // 담임 찾기
       const homeroom = D.homerooms && D.homerooms.find(x => x.teacher === teacherName);
       if (homeroom) {
-        const history = generateHistory(homeroom.overall);
+        const history = genHistory(teacherName, homeroom.overall, 'homeroom');
         chartBox.innerHTML = renderSelectedPeriodChartGeneric(history, OVERALL_HISTORY, PERIODS, sel, teacherName, ['성적관리', '정서관리'], homeroom);
       } else {
         // 학사 찾기
         const haksa = D.haksa && D.haksa.list && D.haksa.list.find(x => x.name === teacherName);
         if (haksa) {
-          const history = generateHistory(haksa.overall);
+          const history = genHistory(teacherName, haksa.overall, 'haksa');
           const haksaItems = ['아침식사', '기상관리', '셔틀정숙', '휴대폰관리', '학사복귀후관리', '청소빨래'].filter(k => haksa[k] !== undefined);
           chartBox.innerHTML = renderSelectedPeriodChartGeneric(history, OVERALL_HISTORY, PERIODS, sel, teacherName, haksaItems, haksa);
         } else {
           // 부서 (급식·교무·매일깨기·한국사) 찾기 - window._deptModalContext
           const deptCtx = window._deptModalContext && window._deptModalContext[teacherName];
           if (deptCtx) {
-            const history = generateHistory(deptCtx.overall);
+            const history = genHistory(teacherName, deptCtx.overall, 'section');
             chartBox.innerHTML = renderSelectedPeriodChartGeneric(history, OVERALL_HISTORY, PERIODS, sel, teacherName, deptCtx.items, deptCtx.obj);
           }
         }
@@ -4833,11 +5049,15 @@ function refreshTeacherDetails(teacherName) {
     displayedN = classes[classFilter - 1].n;
     displayedRespN = Math.round(teacher.n_responses * displayedN / teacher.n_students);
   }
-  // 분기 평균 적용 (선택된 분기들의 평균치를 현재 점수에 반영)
+  // 분기 평균 적용 (선택된 분기들의 평균치를 현재 점수에 반영) - 과거 데이터 있을 때만
   if (!isCurrentOnly) {
-    const history = generateHistory(teacher.overall);
-    const avgScore = periodSel.reduce((s, i) => s + history[i], 0) / periodSel.length;
-    displayedScore = displayedScore - teacher.overall + avgScore; // 반 점수에 분기 차이 반영
+    const history = genHistory(teacher.teacher, teacher.overall, 'teacher');
+    const validHist = periodSel.map(i => history[i]).filter(v => v != null && !isNaN(v));
+    if (validHist.length > 0) {
+      const avgScore = validHist.reduce((s, v) => s + v, 0) / validHist.length;
+      displayedScore = displayedScore - teacher.overall + avgScore; // 반 점수에 분기 차이 반영
+    }
+    // 과거 데이터 없으면 현재 점수 그대로 (보정 없음)
   }
   // 헤더 칩 갱신 (항목별 점수)
   const header = document.getElementById('itemScoresHeader_' + safeName);
@@ -4909,15 +5129,9 @@ function refreshTeacherDetails(teacherName) {
 }
 
 function generateHistory(currentScore) {
-  // openTeacherModal과 같은 로직
-  const out = [];
-  for (let i = 0; i < PERIODS.length - 1; i++) {
-    const v = seededRand('hist_gen', i);
-    const trend = -0.12 + (i / (PERIODS.length - 1)) * 0.10;
-    out.push(currentScore + trend + (v - 0.5) * 0.15);
-  }
-  out.push(currentScore);
-  return out;
+  // 빈 깡통: 더 이상 가짜 데이터 생성 안 함. 현재 분기만 진짜, 나머지는 null.
+  // 만약 다른 코드에서 호출되면, genHistory()와 호환되도록 PERIODS 길이의 배열을 반환.
+  return PERIODS.map(p => p.isCurrent ? currentScore : null);
 }
 
 function renderSelectedPeriodChart(history, overallHistory, periods, selectedIndices, teacherName) {
@@ -5226,8 +5440,7 @@ window.updateTrendChart = function(kind, name, rangeStr) {
     currentScore = k.overall;
   } else return;
 
-  const fullHistory = genHistory(name, currentScore);
-  const slicedHistory = fullHistory.slice(-range);
+  const fullHistory = genHistory(name, currentScore, kind);
   const slicedPeriods = PERIODS.slice(-range);
   const slicedAvg = OVERALL_HISTORY.slice(-range);
 
@@ -6700,7 +6913,7 @@ function renderFood(root) {
   if (!foodSec) { root.innerHTML = '<h1 class="page-title">급식</h1><div class="empty">데이터 없음</div>'; return; }
   const targetId = 'dept_급식';
 
-  const foodHistory = genHistory('급식', foodSec.avg);
+  const foodHistory = genHistory('급식', foodSec.avg, 'section');
 
   root.innerHTML = `
     <h1 class="page-title">급식 평가</h1>
@@ -6862,7 +7075,7 @@ function _renderDeptTrend(sec, label) {
   if (!window._deptModalContext) window._deptModalContext = {};
   const obj = { overall: sec.avg, ...sec.details };
   window._deptModalContext[sec.sec] = { overall: sec.avg, items: Object.keys(sec.details || {}), obj };
-  const history = genHistory(sec.sec, sec.avg);
+  const history = genHistory(sec.sec, sec.avg, 'section');
   return `
     <h2 style="font-size:16px; font-weight:700; margin: 22px 0 12px; color:var(--ink); letter-spacing: -0.02em;">📈 ${escapeHtml(label || sec.sec)} — 분기별 추이</h2>
     <div class="card">
@@ -7118,12 +7331,60 @@ function renderSettings(root) {
     <div class="card" style="display: ${activeSec === 'period' ? 'block' : 'none'}; background: #ecfdf5; border-left: 4px solid #059669;">
       <h2 class="card-title">🚀 엑셀 → data.js 원클릭 변환 <span class="card-sub" style="color:#059669;">★ 추천</span></h2>
       <div style="font-size:12.5px; color:var(--ink-3); margin: 4px 0 12px; line-height:1.6;">
-        ① 엑셀 파일 선택 (여러 개 OK)<br>
-        ② 변환 버튼 → 자동 분석 + data.js 자동 다운로드<br>
-        ③ 받은 data.js를 GitHub의 admin.html과 같은 폴더에 업로드
+        ① 엑셀 파일 선택<br>
+        ② <b>분기 정보 선택</b> (학년도/학기/차수/대상)<br>
+        ③ 변환 버튼 → 자동 분석 + data.js 자동 다운로드<br>
+        ④ 받은 data.js를 GitHub의 admin.html과 같은 폴더에 업로드
       </div>
       <div style="margin-bottom:12px;">
+        <label style="display:block; font-size:12px; color:var(--ink-2); margin-bottom:4px; font-weight:600;">📁 엑셀 파일</label>
         <input id="oneClick_files" type="file" accept=".xlsx,.xls" multiple style="font-size:12px; width:100%;">
+        <div style="font-size:11px; color:var(--ink-3); margin-top:4px;">⚠️ 여러 파일 동시 업로드 시 모두 같은 분기·대상으로 등록됩니다. 다른 분기·대상은 따로 업로드하세요.</div>
+      </div>
+      <div style="margin-bottom:12px; padding:12px; background:#fff; border:1px solid #a7f3d0; border-radius:6px;">
+        <div style="font-size:12.5px; color:var(--ink-2); margin-bottom:8px; font-weight:700;">📅 이 파일은 어느 분기·대상이에요?</div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;">
+          <div>
+            <label style="display:block; font-size:11px; color:var(--ink-3); margin-bottom:3px;">학년도</label>
+            <select id="oneClick_year" style="width:100%; font-size:12.5px; padding:6px 8px; border:1px solid var(--line-2); border-radius:4px;">
+              <option value="2024">2024학년도</option>
+              <option value="2025">2025학년도</option>
+              <option value="2026">2026학년도</option>
+              <option value="2027" selected>2027학년도</option>
+              <option value="2028">2028학년도</option>
+              <option value="2029">2029학년도</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; color:var(--ink-3); margin-bottom:3px;">학기</label>
+            <select id="oneClick_semester" style="width:100%; font-size:12.5px; padding:6px 8px; border:1px solid var(--line-2); border-radius:4px;">
+              <option value="1" selected>1학기</option>
+              <option value="2">2학기</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; color:var(--ink-3); margin-bottom:3px;">차수</label>
+            <select id="oneClick_round" style="width:100%; font-size:12.5px; padding:6px 8px; border:1px solid var(--line-2); border-radius:4px;">
+              <option value="1" selected>1차</option>
+              <option value="2">2차</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; color:var(--ink-3); margin-bottom:3px;">대상</label>
+            <select id="oneClick_target" style="width:100%; font-size:12.5px; padding:6px 8px; border:1px solid var(--line-2); border-radius:4px;">
+              <option value="정규" selected>정규</option>
+              <option value="선행">선행</option>
+              <option value="윈터">윈터</option>
+            </select>
+          </div>
+        </div>
+        <div id="oneClick_preview" style="margin-top:8px; padding:6px 10px; background:#ecfdf5; border-radius:4px; font-size:12px; color:#047857; font-weight:600;">
+          📌 등록 분기: <b>2027학년도 1학기 1차 정규</b>
+        </div>
+        <label style="display:flex; align-items:center; gap:6px; margin-top:10px; font-size:12px; color:var(--ink-2); cursor:pointer;">
+          <input type="checkbox" id="oneClick_setCurrent" checked style="margin:0;">
+          이 분기를 <b>현재 분기</b>로 설정 (실시간 현황 화면에서 표시됨)
+        </label>
       </div>
       <div id="oneClickStatus" style="font-size: 11.5px; padding: 8px 12px; background: #fff; border: 1px solid #a7f3d0; border-radius: 4px; margin-bottom: 10px; line-height: 1.6; display:none;"></div>
       <div style="display:flex; justify-content:flex-end;">
