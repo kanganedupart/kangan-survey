@@ -322,8 +322,7 @@
   .rc-bad  { background: var(--danger-soft); color: var(--danger); }
   .rc-section-h { font-size: 16px; font-weight: 700; margin: 24px 0 12px; color: var(--ink); letter-spacing: -0.02em; }
 </style>
-<!-- 데이터 파일 로드 (없어도 OK) -->
-<script src="data.js" onerror="console.warn('data.js 없음 - 빈 상태로 시작')"></script>
+<script src="data.js" onerror="console.warn('data.js 없음 - 빈 상태로 시작합니다')"></script>
 </head>
 <body>
 
@@ -337,7 +336,7 @@
     </div>
     <div class="period-selector" id="periodSelector"></div>
     <nav class="nav" id="nav">
-      <button class="nav-item" data-tab="dashboard"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="13" width="3" height="5"/><rect x="12" y="9" width="3" height="9"/><rect x="17" y="6" width="3" height="12"/></svg></span>실시간 현황</button>
+      <button class="nav-item active" data-tab="dashboard"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="13" width="3" height="5"/><rect x="12" y="9" width="3" height="9"/><rect x="17" y="6" width="3" height="12"/></svg></span>실시간 현황</button>
       <button class="nav-item" data-tab="sections"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></span>영역별 결과</button>
       <div class="nav-group-h">평가 대상</div>
       <button class="nav-item" data-tab="instructors"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l10-5 10 5-10 5-10-5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v5"/></svg></span>강사 <span class="nav-sub">강사·담임·특강</span></button>
@@ -349,7 +348,7 @@
       <button class="nav-item" data-tab="freetext"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8 8.5 8.5 0 0 1-3.5-.7L3 21l1.7-6.5A8 8 0 1 1 21 12z"/></svg></span>자유응답</button>
       <button class="nav-item" data-tab="feedback"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M18 2l4 4-9 9-4 1 1-4 8-8 .01-.01z"/></svg></span>피드백 작성 <span class="nav-badge" id="fbBadge"></span></button>
       <button class="nav-item" data-tab="recontract"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></span>재계약 검토</button>
-      <button class="nav-item active" data-tab="settings"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>설정</button>
+      <button class="nav-item" data-tab="settings"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>설정</button>
     </nav>
     <div class="nav-divider"></div>
   </aside>
@@ -364,11 +363,13 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// [수정됨 2026-05] 외부 data.js 우선, 없으면 빈 객체
+// 데이터 로딩 (data.js가 있으면 그것을 우선 사용)
 window.SURVEYS = (window.SURVEYS_EXTERNAL && Object.keys(window.SURVEYS_EXTERNAL).length > 0)
   ? window.SURVEYS_EXTERNAL : {};
 window.__RAW_XLSX_B64__ = window.RAW_XLSX_B64_EXTERNAL || "";
-window.CURRENT_PERIOD_ID = '2026-1';
+// 가장 최근 분기 자동 선택 (data.js에 들어있는 분기 중)
+const _ids = Object.keys(window.SURVEYS).sort();
+window.CURRENT_PERIOD_ID = _ids.length > 0 ? _ids[_ids.length - 1] : '__none__';
 window.SURVEY_DATA = window.SURVEYS[window.CURRENT_PERIOD_ID];
 let D = window.SURVEY_DATA;
 
@@ -423,14 +424,11 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
   };
   const numOrNull = (v) => {
     if (v === null || v === undefined || v === '') return null;
-    // 1) 숫자인 경우
     const n = parseFloat(v);
     if (!isNaN(n) && n >= 1 && n <= 5) return n;
-    // 2) 한글 응답인 경우 - 양 끝 공백/마침표 제거
-    // [수정됨 2026-05] "매우 그렇다." 같은 마침표 붙은 응답도 인식
+    // 마침표/공백 제거 (예: "매우 그렇다." → "매우 그렇다")
     const s = String(v).trim().replace(/[.。\s]+$/, '');
     if (KOREAN_TO_NUM[s]) return KOREAN_TO_NUM[s];
-    // 3) 일치하지 않음
     return null;
   };
 
@@ -485,7 +483,6 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
     Object.keys(def.details).forEach(label => {
       const col = def.details[label];
       const vals = rows.map(r => numOrNull(r[col])).filter(v => v !== null);
-      // [수정됨 2026-05] 빈 응답일 때 0으로 채우지 않음 (엑셀 AVERAGE와 동일하게)
       detailsAvg[label] = vals.length ? round2(avg(vals)) : null;
     });
     const allDetailVals = Object.keys(def.details).flatMap(l => rows.map(r => numOrNull(r[def.details[l]])).filter(v => v !== null));
@@ -544,28 +541,28 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
     rows.forEach(r => {
       const room = r[slot.roomCol];
       if (!room || !String(room).trim()) return;
-      // raw 엑셀 패턴: "월요일 502호 김춘근 선생님" 또는 "목요일 08:00 501호 이승국 선생님(세계지리A)"
+      // raw 엑셀 패턴: "월요일 502호 김춘근 선생님"
       // 학생 설문 패턴: "(월) 303호 김학림"
       const dayMap = { '월':'월요일', '화':'화요일', '수':'수요일', '목':'목요일', '금':'금요일', '토':'토요일', '일':'일요일' };
       let day = '', roomNum = '', teacher = '';
-      // [수정됨 2026-05] 시간 포함 패턴 먼저 시도: "목요일 08:00 501호 이승국 선생님(세계지리A)"
+      // 패턴 1: 시간 포함 "목요일 08:00 501호 이승국 선생님(세계지리A)"
       let m = String(room).match(/^(\S+요일)\s+\d{1,2}:\d{2}\s+(\S+호)\s+(\S+?)\s+선생님/);
       if (m) {
         day = m[1]; roomNum = m[2]; teacher = m[3];
       } else {
-        // 시간 없는 패턴: "월요일 502호 김춘근 선생님"
+        // 패턴 2: 시간 없음 "월요일 502호 김춘근 선생님"
         m = String(room).match(/^(\S+요일)\s+(\S+호)\s+(\S+?)\s+선생님/);
         if (m) {
           day = m[1]; roomNum = m[2]; teacher = m[3];
         } else {
-          // 학생 설문 패턴 시도: "(월) 303호 김학림" 또는 "(월) 303호 김학림 선생님"
+          // 패턴 3: 학생 설문 "(월) 303호 김학림"
           m = String(room).match(/^\((\S)\)\s+(\S+호)\s+(\S+?)(?:\s+선생님)?$/);
           if (m) {
             day = dayMap[m[1]] || m[1];
             roomNum = m[2];
             teacher = m[3];
           } else {
-            return; // 패턴 매칭 실패
+            return;
           }
         }
       }
@@ -2092,18 +2089,17 @@ function refreshStatusBadge() {
 }
 function renderTab(name) {
   const root = document.getElementById('main');
-  // [수정됨 2026-05] 데이터 없을 때 안전 처리
+  // 데이터 없을 때 settings 외 다른 페이지는 안내 화면
   if (!D && name !== 'settings') {
     root.innerHTML = `
       <h1 class="page-title">데이터를 먼저 등록하세요</h1>
       <div style="padding: 30px; background: #fff7e6; border: 1px solid #ffd591; border-radius: 8px; margin-top: 20px;">
         <h2 style="color: #c97500; margin-top: 0; font-size: 18px;">⚠️ 설문 데이터가 없습니다</h2>
-        <p style="font-size: 14px; line-height: 1.7;">먼저 엑셀 파일을 업로드해야 화면이 보입니다.</p>
-        <p style="font-size: 14px; line-height: 1.7;">아래 <b>[설정으로 이동]</b> 버튼을 누르세요.</p>
+        <p style="font-size: 14px; line-height: 1.7;">왼쪽 메뉴 <b>[⚙️ 설정]</b>에서 엑셀을 업로드하세요.</p>
         <button style="margin-top: 16px; padding: 12px 24px; background: #059669; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;" onclick="
           document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-          var settingsBtn = document.querySelector('.nav-item[data-tab=\\'settings\\']');
-          if (settingsBtn) settingsBtn.classList.add('active');
+          var btn = document.querySelector('.nav-item[data-tab=\\'settings\\']');
+          if (btn) btn.classList.add('active');
           renderTab('settings');
         ">⚙️ 설정으로 이동</button>
       </div>
@@ -2419,14 +2415,11 @@ function registerNewPeriod(periodId, periodLabel, surveyData) {
       return a.id.localeCompare(b.id);
     });
   }
-  // [수정됨 2026-05] D가 비어있으면 새로 등록한 분기로 자동 설정
+  // 데이터가 비어있거나 "데이터 없음" 상태면 → 새 분기를 자동 활성화
   if (!D || !D.meta || D.meta.period === '데이터 없음') {
     window.CURRENT_PERIOD_ID = periodId;
     window.SURVEY_DATA = surveyData;
     window.D = D = surveyData;
-    PERIODS.forEach(p => p.isCurrent = false);
-    const target = PERIODS.find(p => p.id === periodId);
-    if (target) target.isCurrent = true;
   }
   renderPeriodSelector();
   const activeTab = document.querySelector('.nav-item.active');
@@ -2435,40 +2428,39 @@ function registerNewPeriod(periodId, periodLabel, surveyData) {
 }
 
 // ============================================================
-// 💾 data.js 다운로드 + 🚀 원클릭 변환 (2026-05)
+// 💾 data.js 다운로드 + 🚀 원클릭 변환 (안전·단순 버전)
 // ============================================================
 window.refreshDataJsStatus = function() {
   const box = document.getElementById('dataJsStatusBox');
   if (!box) return;
-  const ids = Object.keys(window.SURVEYS || {});
+  const ids = Object.keys(window.SURVEYS || {}).filter(id => id !== '__none__');
   if (ids.length === 0) {
     box.innerHTML = '<span style="color:#888;">등록된 분기가 없습니다.</span>';
     return;
   }
   const jsonSize = JSON.stringify(window.SURVEYS).length;
   const sizeKB = (jsonSize / 1024).toFixed(0);
-  let html = `<b>현재 등록된 분기 ${ids.length}개</b> (예상 파일 크기: ${sizeKB} KB)<br>`;
-  html += '<ul style="margin: 6px 0 0; padding-left: 20px;">';
+  let html = `<b>현재 등록된 분기 ${ids.length}개</b> (예상 크기: ${sizeKB} KB)<br><ul style="margin: 6px 0 0; padding-left: 20px;">`;
   ids.sort().forEach(id => {
     const data = window.SURVEYS[id];
     const label = (data && data.meta && data.meta.period) ? data.meta.period : id;
     const n = (data && data.meta && data.meta.n_total) ? data.meta.n_total : '?';
-    html += `<li>${escapeHtml(id)} — ${escapeHtml(label)} (응답 ${n}건)</li>`;
+    html += `<li>${escapeHtml(label)} (응답 ${n}건)</li>`;
   });
   html += '</ul>';
   box.innerHTML = html;
 };
 
 window.downloadDataJs = function() {
-  const ids = Object.keys(window.SURVEYS || {});
-  if (ids.length === 0) {
-    alert('등록된 분기가 없습니다.\n먼저 엑셀을 업로드하세요.');
-    return;
-  }
-  if (!confirm(`현재 등록된 ${ids.length}개 분기를 data.js로 다운로드합니다.\n계속하시겠습니까?`)) return;
+  const ids = Object.keys(window.SURVEYS || {}).filter(id => id !== '__none__');
+  if (ids.length === 0) { alert('등록된 분기가 없습니다.'); return; }
+  if (!confirm(`${ids.length}개 분기를 data.js로 다운로드합니다.\n\n다운받은 후 GitHub의 admin.html과 같은 폴더에 업로드하세요.`)) return;
   try {
+    // __none__ 키는 빼고 저장
+    const cleanSurveys = {};
+    ids.forEach(id => { cleanSurveys[id] = window.SURVEYS[id]; });
     const header = `// 강안교육 만족도 조사 - 데이터 파일\n// 생성일: ${new Date().toLocaleString('ko-KR')}\n\nwindow.SURVEYS_EXTERNAL = `;
-    const fullContent = header + JSON.stringify(window.SURVEYS, null, 1) + `;\n`;
+    const fullContent = header + JSON.stringify(cleanSurveys, null, 1) + `;\n`;
     const blob = new Blob([fullContent], { type: 'application/javascript;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -2486,18 +2478,13 @@ window.downloadDataJs = function() {
 window.oneClickConvert = async function() {
   const fileInput = document.getElementById('oneClick_files');
   const statusBox = document.getElementById('oneClickStatus');
-  if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-    alert('엑셀 파일을 선택하세요.');
-    return;
-  }
+  if (!fileInput || !fileInput.files || fileInput.files.length === 0) { alert('엑셀 파일을 선택하세요.'); return; }
   const files = Array.from(fileInput.files);
   statusBox.style.display = 'block';
   statusBox.innerHTML = `<b>🔄 SheetJS 로딩 중...</b>`;
   try { await ensureSheetJS(); }
-  catch (e) {
-    statusBox.innerHTML = `<b style="color:#dc2626;">❌ SheetJS 로드 실패: ${e.message}</b>`;
-    return;
-  }
+  catch (e) { statusBox.innerHTML = `<b style="color:#dc2626;">❌ SheetJS 로드 실패: ${e.message}</b>`; return; }
+  
   function parsePeriodFromFilename(filename) {
     const base = filename.replace(/\.(xlsx|xls)$/i, '');
     let m = base.match(/(\d{4})[_\-\s.](\d)[_\-\s.](\d)/);
@@ -2507,6 +2494,7 @@ window.oneClickConvert = async function() {
     const safeName = base.replace(/[^a-zA-Z0-9가-힣\-_]/g, '_');
     return { id: safeName, label: base };
   }
+  
   const results = [];
   let successCount = 0, failCount = 0;
   for (let i = 0; i < files.length; i++) {
@@ -2518,16 +2506,9 @@ window.oneClickConvert = async function() {
       const wb = XLSX.read(arrayBuffer, { type: 'array' });
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-      if (!rows || rows.length === 0) {
-        results.push({ file: file.name, status: 'fail', reason: '데이터 없음' });
-        failCount++;
-        continue;
-      }
+      if (!rows || rows.length === 0) { results.push({ file: file.name, status: 'fail', reason: '데이터 없음' }); failCount++; continue; }
       const rawResponses = rows.map(r => ({ raw: r }));
-      const periodMeta = {
-        period: periodInfo.label, period_id: periodInfo.id,
-        n_target: rows.length, submitted_at: new Date().toISOString(),
-      };
+      const periodMeta = { period: periodInfo.label, period_id: periodInfo.id, n_target: rows.length, submitted_at: new Date().toISOString() };
       const surveyData = window.computeFromRawResponses(rawResponses, periodMeta);
       registerNewPeriod(periodInfo.id, periodInfo.label, surveyData);
       results.push({ file: file.name, period: periodInfo.label, status: 'ok', n_responses: rows.length });
@@ -2538,16 +2519,20 @@ window.oneClickConvert = async function() {
       failCount++;
     }
   }
+  
   let html = `<b>📊 처리 완료: 성공 ${successCount}개 / 실패 ${failCount}개</b><br>`;
   results.forEach(r => {
     if (r.status === 'ok') html += `✅ <b>${escapeHtml(r.period)}</b> (응답 ${r.n_responses}건)<br>`;
     else html += `❌ <b style="color:#dc2626;">${escapeHtml(r.file)}</b>: ${escapeHtml(r.reason)}<br>`;
   });
+  
   if (successCount > 0) {
     setTimeout(() => {
       try {
+        const cleanSurveys = {};
+        Object.keys(window.SURVEYS).filter(id => id !== '__none__').forEach(id => { cleanSurveys[id] = window.SURVEYS[id]; });
         const header = `// 강안교육 만족도 조사 - 데이터 파일\n// 생성일: ${new Date().toLocaleString('ko-KR')}\n\nwindow.SURVEYS_EXTERNAL = `;
-        const fullContent = header + JSON.stringify(window.SURVEYS, null, 1) + `;\n`;
+        const fullContent = header + JSON.stringify(cleanSurveys, null, 1) + `;\n`;
         const blob = new Blob([fullContent], { type: 'application/javascript;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -2555,12 +2540,9 @@ window.oneClickConvert = async function() {
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         const sizeKB = (fullContent.length / 1024).toFixed(0);
-        statusBox.innerHTML = html + `<div style="margin-top:10px; padding:10px; background:#10b981; color:white; border-radius:4px;"><b>🎉 data.js 다운로드 완료!</b> (${sizeKB} KB)<br><span style="font-size:11.5px;">📤 다운받은 data.js를 GitHub의 admin.html과 같은 폴더에 올리세요.</span></div>`;
+        statusBox.innerHTML = html + `<div style="margin-top:10px; padding:10px; background:#10b981; color:white; border-radius:4px;"><b>🎉 data.js 다운로드 완료!</b> (${sizeKB} KB)<br><span style="font-size:11.5px;">📤 다운받은 data.js를 GitHub의 admin.html과 같은 폴더에 업로드하세요.</span></div>`;
         fileInput.value = '';
-      } catch (e) {
-        console.error(e);
-        statusBox.innerHTML += `<div style="color:#dc2626; margin-top:10px;">data.js 다운로드 실패: ${e.message}</div>`;
-      }
+      } catch (e) { console.error(e); statusBox.innerHTML += `<div style="color:#dc2626;">❌ ${e.message}</div>`; }
     }, 500);
   } else {
     statusBox.innerHTML = html;
@@ -2813,14 +2795,12 @@ window.toggleAutoSync = function() {
 
 // 페이지 로드 후 자동 동기화 복원 (이전에 켜뒀다면)
 window.addEventListener('load', () => {
-  // [수정됨 2026-05] 데이터 없으면 자동으로 설정 페이지로 이동
+  // 데이터 없으면 자동으로 [설정] 페이지로
   if (!D) {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     const settingsBtn = document.querySelector('.nav-item[data-tab="settings"]');
     if (settingsBtn) settingsBtn.classList.add('active');
-    if (typeof renderTab === 'function') {
-      renderTab('settings');
-    }
+    if (typeof renderTab === 'function') renderTab('settings');
   }
   setTimeout(() => {
     if (localStorage.getItem('kangan_auto_sync') === '1') {
@@ -6809,16 +6789,13 @@ function renderEdu2(root) {
 
 // ====== 설정 탭 ======
 function renderSettings(root) {
-  // [수정됨 2026-05] D 없을 때 빈 객체로 폴백 - 엑셀 업로드하면 자동으로 진짜 데이터로 교체됨
+  // D 없을 때 빈 객체로 폴백 (엑셀 업로드 후 자동 교체됨)
   if (!D) {
     window.D = D = {
       meta: { period: '데이터 없음', n_total: 0, n_target: 0, overall_score: 0 },
-      teachers: [],
-      homerooms: [],
+      teachers: [], homerooms: [],
       haksa: { list: [] },
-      sections: [],
-      free_responses: [],
-      sentiment: {},
+      sections: [], free_responses: [], sentiment: {},
     };
   }
   const s = loadSettings();
@@ -6944,17 +6921,15 @@ function renderSettings(root) {
       </div>
     </div>
 
-    <!-- 🚀 원클릭 변환 (엑셀 → data.js 자동) -->
+    <!-- 🚀 원클릭 변환 -->
     <div class="card" style="display: ${activeSec === 'period' ? 'block' : 'none'}; background: #ecfdf5; border-left: 4px solid #059669;">
-      <h2 class="card-title">🚀 엑셀 → data.js 원클릭 변환 <span class="card-sub" style="color:#059669;">★ 추천 — 엑셀 여러 개를 한번에</span></h2>
+      <h2 class="card-title">🚀 엑셀 → data.js 원클릭 변환 <span class="card-sub" style="color:#059669;">★ 추천</span></h2>
       <div style="font-size:12.5px; color:var(--ink-3); margin: 4px 0 12px; line-height:1.6;">
-        ① 엑셀 파일 선택 (여러 개도 OK, Ctrl 누르고 클릭)<br>
-        ② 파일명에서 회차 자동 인식 (예: <code>2024_1_1.xlsx</code> → 2024년 1학기 1차)<br>
-        ③ 변환 버튼 누르면 자동 분석 + data.js 자동 다운로드<br>
-        ④ 받은 data.js를 GitHub의 admin.html과 같은 폴더에 업로드
+        ① 엑셀 파일 선택 (여러 개 OK)<br>
+        ② 변환 버튼 → 자동 분석 + data.js 자동 다운로드<br>
+        ③ 받은 data.js를 GitHub의 admin.html과 같은 폴더에 업로드
       </div>
       <div style="margin-bottom:12px;">
-        <div style="font-size:11.5px; color:var(--ink-2); margin-bottom:4px;">📁 엑셀 파일</div>
         <input id="oneClick_files" type="file" accept=".xlsx,.xls" multiple style="font-size:12px; width:100%;">
       </div>
       <div id="oneClickStatus" style="font-size: 11.5px; padding: 8px 12px; background: #fff; border: 1px solid #a7f3d0; border-radius: 4px; margin-bottom: 10px; line-height: 1.6; display:none;"></div>
@@ -6989,11 +6964,11 @@ function renderSettings(root) {
       </div>
     </div>
 
-    <!-- 💾 data.js 다운로드 (영구 저장용) -->
+    <!-- 💾 data.js 다운로드 -->
     <div class="card" style="display: ${activeSec === 'period' ? 'block' : 'none'}; background: #fef3c7; border-left: 4px solid #d97706;">
-      <h2 class="card-title">💾 data.js로 저장 <span class="card-sub">현재 등록된 분기들을 파일로 저장</span></h2>
+      <h2 class="card-title">💾 data.js로 저장 <span class="card-sub">현재 등록된 분기를 파일로</span></h2>
       <div style="font-size:12px; color:var(--ink-3); margin: 4px 0 12px; line-height:1.55;">
-        업로드한 데이터는 페이지를 닫으면 사라집니다. 영구 보관하려면 data.js로 저장 후 GitHub에 업로드하세요.
+        업로드한 데이터는 페이지 닫으면 사라집니다. 영구 보관하려면 data.js로 저장 후 GitHub에 업로드하세요.
       </div>
       <div id="dataJsStatusBox" style="font-size: 11.5px; padding: 8px 12px; background: #fff; border: 1px solid #fcd34d; border-radius: 4px; margin-bottom: 10px; line-height: 1.6;">
         <span style="color:#888;">[새로고침] 버튼을 눌러 현재 분기를 확인하세요.</span>
