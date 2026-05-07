@@ -516,16 +516,98 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
 
   // === 2. 강사 (수업영역 - 8개 분반 슬롯) ===
   // 강의실 컬럼들에서 "요일 호수 강사이름 선생님" 패턴 매칭
+  // [수정됨 2026-05] classroomSlots 8개 + 논술 1개 + 기초특강 2개 = 11개
+  // type 필드 추가: 국수영, 탐구, 논술, 기초특강
+  // 강의실 1~6: 국수영 (질문 7개)
+  // 강의실 7~8: 탐구 (질문 5개, 학습상담/피드백 없음)
+  // 논술: 질문 5개 (수업운영, 효과적전달, 난이도, 첨삭피드백, 질문답변)
+  // 기초특강: 질문 2개 (수업운영, 보완도움)
+  const QS_KSY = { // 국수영 7개 질문
+    '수업운영': '1) 선생님의 전반적인 수업 운영에 만족하십니까?',
+    '질문답변': '2) 선생님은 질문에 성실히 답변해주셨습니까?',
+    'P/F테스트': '3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까?',
+    '과제관리': '4) 선생님의 과제 검사 및 관리에 만족하십니까?',
+    '학습상담': '5) 선생님은 나의 학습상황에 관심을 갖고 공부법이나 약점에 대한 학습상담을 잘 해주셨습니까?',
+    '교재': '6) 교재에 만족하십니까?',
+    '피드백': '7) 피드백 선생님의 질문답변에 만족하십니까?',
+  };
+  function ksy(suffix) {
+    const r = {};
+    Object.keys(QS_KSY).forEach(k => {
+      r[k] = QS_KSY[k] + (suffix ? (' ' + suffix) : '');
+    });
+    return r;
+  }
+  function tamgu(suffix) {
+    // 탐구는 학습상담/피드백 빠지고 5개. 단, 슬롯7은 컬럼명이 달라요 ("5) 교재에 만족하십니까?")
+    return {
+      '수업운영': '1) 선생님의 전반적인 수업 운영에 만족하십니까? ' + suffix,
+      '질문답변': '2) 선생님은 질문에 성실히 답변해주셨습니까? ' + suffix,
+      'P/F테스트': '3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까? ' + suffix,
+      '과제관리': '4) 선생님의 과제 검사 및 관리에 만족하십니까? ' + suffix,
+    };
+  }
   const classroomSlots = [
-    { roomCol: '수업이 진행되는 강의실을 선택해 주십시오.', qPrefix: '', // Col 16-24
-      qs: { '수업운영': '1) 선생님의 전반적인 수업 운영에 만족하십니까?', '질문답변': '2) 선생님은 질문에 성실히 답변해주셨습니까?', 'P/F테스트': '3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까?', '과제관리': '4) 선생님의 과제 검사 및 관리에 만족하십니까?', '학습상담': '5) 선생님은 나의 학습상황에 관심을 갖고 공부법이나 약점에 대한 학습상담을 잘 해주셨습니까?', '교재': '6) 교재에 만족하십니까?', '피드백': '7) 피드백 선생님의 질문답변에 만족하십니까?' }, freeCol: '8) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?'
-    },
-    { roomCol: '수업이 진행되는 강의실을 선택해 주십시오. 2',
-      qs: { '수업운영': '1) 선생님의 전반적인 수업 운영에 만족하십니까? 2', '질문답변': '2) 선생님은 질문에 성실히 답변해주셨습니까? 2', 'P/F테스트': '3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까? 2', '과제관리': '4) 선생님의 과제 검사 및 관리에 만족하십니까? 2', '학습상담': '5) 선생님은 나의 학습상황에 관심을 갖고 공부법이나 약점에 대한 학습상담을 잘 해주셨습니까? 2', '교재': '6) 교재에 만족하십니까? 2', '피드백': '7) 피드백 선생님의 질문답변에 만족하십니까? 2' }, freeCol: '8) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 2'
-    },
-    { roomCol: '수업이 진행되는 강의실을 선택해 주십시오. 3',
-      qs: { '수업운영': '1) 선생님의 전반적인 수업 운영에 만족하십니까? 3', '질문답변': '2) 선생님은 질문에 성실히 답변해주셨습니까? 3', 'P/F테스트': '3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까? 3', '과제관리': '4) 선생님의 과제 검사 및 관리에 만족하십니까? 3', '학습상담': '5) 선생님은 나의 학습상황에 관심을 갖고 공부법이나 약점에 대한 학습상담을 잘 해주셨습니까? 3', '교재': '6) 교재에 만족하십니까? 3', '피드백': '7) 피드백 선생님의 질문답변에 만족하십니까? 3' }, freeCol: '8) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 3'
-    },
+    { roomCol: '수업이 진행되는 강의실을 선택해 주십시오.', type: '국수영',
+      qs: QS_KSY,
+      freeCol: '8) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?' },
+    { roomCol: '수업이 진행되는 강의실을 선택해 주십시오. 2', type: '국수영',
+      qs: ksy('2'),
+      freeCol: '8) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 2' },
+    { roomCol: '수업이 진행되는 강의실을 선택해 주십시오. 3', type: '국수영',
+      qs: ksy('3'),
+      freeCol: '8) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 3' },
+    { roomCol: '수업이 진행되는 강의실을 선택해 주십시오. 4', type: '국수영',
+      qs: ksy('4'),
+      freeCol: '8) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 4' },
+    { roomCol: '수업이 진행되는 강의실을 선택해 주십시오. 5', type: '국수영',
+      qs: ksy('5'),
+      freeCol: '8) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 5' },
+    { roomCol: '수업이 진행되는 강의실을 선택해 주십시오. 6', type: '국수영',
+      qs: ksy('6'),
+      freeCol: '8) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 6' },
+    // 강의실 7~8: 탐구 (학습상담/피드백 없음, 교재 컬럼명도 다름)
+    { roomCol: '수업이 진행되는 강의실을 선택해 주십시오. \n강의실은 3/17(화), 3/19(목) 기준입니다. 바뀐 강의실에 유의해주십시오.', type: '탐구',
+      qs: {
+        '수업운영': '1) 선생님의 전반적인 수업 운영에 만족하십니까? 7',
+        '질문답변': '2) 선생님은 질문에 성실히 답변해주셨습니까? 7',
+        'P/F테스트': '3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까? 7',
+        '과제관리': '4) 선생님의 과제 검사 및 관리에 만족하십니까? 7',
+        '교재': '5) 교재에 만족하십니까?',
+      },
+      freeCol: '6) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?' },
+    { roomCol: '수업이 진행되는 강의실을 선택해 주십시오. \n강의실은 3/17(화), 3/19(목) 기준입니다. 바뀐 강의실에 유의해주십시오. 2', type: '탐구',
+      qs: {
+        '수업운영': '1) 선생님의 전반적인 수업 운영에 만족하십니까? 8',
+        '질문답변': '2) 선생님은 질문에 성실히 답변해주셨습니까? 8',
+        'P/F테스트': '3) P/F테스트가 학습 성취도 확인에 도움이 되었습니까? 8',
+        '과제관리': '4) 선생님의 과제 검사 및 관리에 만족하십니까? 8',
+        '교재': '5) 교재에 만족하십니까? 2',
+      },
+      freeCol: '6) (수업/피드백/교재)영역에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 2' },
+    // 논술: roomCol 다름, 질문도 다름
+    { roomCol: '수강하고 있는 논술 강의를 선택해 주십시오.\n수강하는 논술 강의가 없다면 "해당 없음"을 선택해 주십시오.', type: '논술',
+      qs: {
+        '수업운영': '1) 선생님의 전반적인 수업 운영에 만족하십니까? 9',
+        '효과적전달': '2) 선생님은 수업내용을 효과적으로 전달하셨습니까?',
+        '난이도': '3) 수업의 난이도는 적절했습니까?',
+        '첨삭피드백': '4) 선생님의 첨삭 피드백에 만족하십니까?',
+        '질문답변': '5) 선생님은 질문에 성실히 답변해주셨습니까?',
+      },
+      freeCol: '6) 수업영역(논술)에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?' },
+    // 기초특강 1, 2
+    { roomCol: '수강했던 기초 강의를 선택해 주십시오.', type: '기초특강',
+      qs: {
+        '수업운영': '1) 선생님의 전반적인 수업 운영에 만족하십니까? 10',
+        '보완도움': '2) 특강 수업이 수강생의 부족했던 부분을 보완하는 데 도움이 되었습니까?',
+      },
+      freeCol: '3) 수업영역(기초특강)에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까?' },
+    { roomCol: '수강했던 기초 강의를 선택해 주십시오. 2', type: '기초특강',
+      qs: {
+        '수업운영': '1) 선생님의 전반적인 수업 운영에 만족하십니까? 11',
+        '보완도움': '2) 특강 수업이 수강생의 부족했던 부분을 보완하는 데 도움이 되었습니까? 2',
+      },
+      freeCol: '3) 수업영역(기초특강)에서 만족하는 부분이나 건의하고 싶은 점은 무엇입니까? 2' },
   ];
 
   // 강사별 데이터 누적
@@ -541,34 +623,68 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
     rows.forEach(r => {
       const room = r[slot.roomCol];
       if (!room || !String(room).trim()) return;
-      // raw 엑셀 패턴: "월요일 502호 김춘근 선생님"
-      // 학생 설문 패턴: "(월) 303호 김학림"
+      const roomStr = String(room).trim();
+      // 해당 없음 처리
+      if (roomStr === '해당 없음' || roomStr.startsWith('해당 없음')) return;
       const dayMap = { '월':'월요일', '화':'화요일', '수':'수요일', '목':'목요일', '금':'금요일', '토':'토요일', '일':'일요일' };
       let day = '', roomNum = '', teacher = '';
-      // 패턴 1: 시간 포함 "목요일 08:00 501호 이승국 선생님(세계지리A)"
-      let m = String(room).match(/^(\S+요일)\s+\d{1,2}:\d{2}\s+(\S+호)\s+(\S+?)\s+선생님/);
+      // [수정됨 2026-05] 패턴 1: 시간 + 호수 + 강사 "목요일 08:00 501호 이승국 선생님(세계지리A)"
+      let m = roomStr.match(/^(\S+요일)\s+\d{1,2}:\d{2}\s+(\S+호)\s+(\S+?)\s+선생님/);
       if (m) {
         day = m[1]; roomNum = m[2]; teacher = m[3];
       } else {
-        // 패턴 2: 시간 없음 "월요일 502호 김춘근 선생님"
-        m = String(room).match(/^(\S+요일)\s+(\S+호)\s+(\S+?)\s+선생님/);
+        // [수정됨 2026-05] 패턴 2: 시간 + 강사 (호수 없음) "목요일 19:20 김성준 선생님 인문논술"
+        m = roomStr.match(/^(\S+요일)\s+\d{1,2}:\d{2}\s+(\S+?)\s+선생님/);
         if (m) {
-          day = m[1]; roomNum = m[2]; teacher = m[3];
+          day = m[1]; roomNum = ''; teacher = m[2];
         } else {
-          // 패턴 3: 학생 설문 "(월) 303호 김학림"
-          m = String(room).match(/^\((\S)\)\s+(\S+호)\s+(\S+?)(?:\s+선생님)?$/);
+          // 패턴 3: 호수만 "월요일 502호 김춘근 선생님"
+          m = roomStr.match(/^(\S+요일)\s+(\S+호)\s+(\S+?)\s+선생님/);
           if (m) {
-            day = dayMap[m[1]] || m[1];
-            roomNum = m[2];
-            teacher = m[3];
+            day = m[1]; roomNum = m[2]; teacher = m[3];
           } else {
-            return;
+            // 패턴 4: 호수도 시간도 없음 "목요일 전종현 선생님 [확률과 통계]" (기초특강)
+            m = roomStr.match(/^(\S+요일)\s+(\S+?)\s+선생님/);
+            if (m) {
+              day = m[1]; roomNum = ''; teacher = m[2];
+            } else {
+              // 패턴 5: 학생 설문 "(월) 303호 김학림"
+              m = roomStr.match(/^\((\S)\)\s+(\S+호)\s+(\S+?)(?:\s+선생님)?$/);
+              if (m) {
+                day = dayMap[m[1]] || m[1];
+                roomNum = m[2];
+                teacher = m[3];
+              } else {
+                // 패턴 6: 단순 "이민호B 선생님"
+                m = roomStr.match(/^(\S+?)\s+선생님(?:\(.*\))?$/);
+                if (m) {
+                  teacher = m[1];
+                  day = ''; roomNum = '';
+                } else {
+                  return;
+                }
+              }
+            }
           }
         }
       }
-      if (!day || !roomNum || !teacher) return;
-      if (!teacherMap[teacher]) {
-        teacherMap[teacher] = { responses: [], classes: {} };
+      if (!teacher) return;
+      // [수정됨 2026-05] 슬롯 type 기반으로 subject 결정
+      // 단, 국수영 슬롯이면 강사 이름으로 정확한 과목(국어/수학/영어) 찾기
+      let teacherSubj = slot.type;
+      if (slot.type === '국수영') {
+        if (typeof ASSIGNEES_SUBJECT === 'object' && ASSIGNEES_SUBJECT[teacher]) {
+          teacherSubj = ASSIGNEES_SUBJECT[teacher];
+        } else if (typeof window.TEACHER_SUBJECT === 'object' && window.TEACHER_SUBJECT[teacher]) {
+          teacherSubj = window.TEACHER_SUBJECT[teacher];
+        } else {
+          teacherSubj = '국수영'; // 매핑 없으면 그대로
+        }
+      }
+      // 키: 이름 + 과목 조합
+      const teacherKey = teacher + '__' + teacherSubj;
+      if (!teacherMap[teacherKey]) {
+        teacherMap[teacherKey] = { name: teacher, subject: teacherSubj, responses: [], classes: {} };
       }
       // 답변 수집
       const ans = {};
@@ -579,17 +695,24 @@ window.computeFromRawResponses = function(rawResponses, periodMeta) {
       });
       if (!valid) return;
       ans.__free = r[slot.freeCol] || '';
-      ans.__class = `${day} ${roomNum}`;
-      teacherMap[teacher].responses.push(ans);
-      const clsKey = `${day} ${roomNum}`;
-      teacherMap[teacher].classes[clsKey] = (teacherMap[teacher].classes[clsKey] || 0) + 1;
+      ans.__class = day && roomNum ? `${day} ${roomNum}` : (slot.type || '');
+      teacherMap[teacherKey].responses.push(ans);
+      const clsKey = ans.__class;
+      teacherMap[teacherKey].classes[clsKey] = (teacherMap[teacherKey].classes[clsKey] || 0) + 1;
     });
   });
 
-  const teachers = Object.keys(teacherMap).map(name => {
-    const t = teacherMap[name];
-    const aggregate = { teacher: name, subject: teacherSubjectFn(name), n_responses: t.responses.length };
-    const qNames = ['수업운영','질문답변','P/F테스트','과제관리','학습상담','교재','피드백'];
+  const teachers = Object.keys(teacherMap).map(key => {
+    const t = teacherMap[key];
+    const name = t.name;
+    const subject = t.subject; // 슬롯 type 직접 사용
+    const aggregate = { teacher: name, subject: subject, n_responses: t.responses.length };
+    // 과목별로 다른 질문 세트 사용
+    let qNames;
+    if (subject === '논술') qNames = ['수업운영','효과적전달','난이도','첨삭피드백','질문답변'];
+    else if (subject === '기초특강') qNames = ['수업운영','보완도움'];
+    else if (subject === '탐구') qNames = ['수업운영','질문답변','P/F테스트','과제관리','교재'];
+    else qNames = ['수업운영','질문답변','P/F테스트','과제관리','학습상담','교재','피드백']; // 국어/수학/영어/국수영
     let allVals = [];
     qNames.forEach(q => {
       const vs = t.responses.map(r => r[q]).filter(v => typeof v === 'number');
@@ -1078,8 +1201,8 @@ window.toggleMandatoryMode = function(name) {
 const ASSIGNEES_SUBJECT = {
   '전종현': '수학', '김학림': '수학', '이민호A': '수학', '신현철': '수학', '진명화': '수학',
   '이민호B': '논술',
-  '김종훈': '국어', '백종수': '국어', '조영신': '국어', '임명훈': '국어',
-  '김춘근': '영어', '김희준': '영어', '황범희': '영어',
+  '김종훈': '국어', '백종수': '국어', '조영신': '국어', '임명훈': '국어', '임현호': '국어',
+  '김춘근': '영어', '김희준': '영어', '황범희': '영어', '지종규': '영어',
 };
 
 // 시제품: 강사·학사 각각의 담당 직원 매핑. 실운영에서 [설정 → 담당 매핑]으로 직접 변경.
