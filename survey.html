@@ -844,11 +844,13 @@ const DEFAULT_SETTINGS = {
   authors: ['대표', '부원장', '교무팀장', '수업운영', '학사담당'],
   // 직원: { id, name, role, password } - role: 'admin'/'manager'/'viewer'
   staff: [
-    { id: 'owner', name: '대표', role: 'admin', password: '0000' },
+    { id: 'owner', name: '대표', role: 'admin', password: '3500' },
     { id: 'park', name: '박승민', role: 'manager', password: '0000' },
     { id: 'lee', name: '이대성', role: 'manager', password: '0000' },
     { id: 'parksy', name: '박상언', role: 'manager', password: '0000' },
     { id: 'edu_lead', name: '교무팀장', role: 'manager', password: '0000' },
+    { id: 'kim_jiyu', name: '김지유', role: 'manager', password: '0000' },
+    { id: 'kang_wonhwi', name: '강원휘', role: 'manager', password: '0000' },
   ],
 };
 
@@ -917,10 +919,20 @@ function loadSettings() {
       full: 'admin', no_settings: 'manager', view_only: 'viewer',
       // manager는 이전·신규 둘 다 'manager' 그대로
     }[r] || r);
-    const staff = (stored.staff || DEFAULT_SETTINGS.staff).map(u => ({
-      ...u,
-      role: migrate(u.role)
-    }));
+    const storedStaff = Array.isArray(stored.staff) ? stored.staff : [];
+    const mergedStaff = [...storedStaff];
+    DEFAULT_SETTINGS.staff.forEach(defaultUser => {
+      if (!mergedStaff.some(u => u.id === defaultUser.id)) mergedStaff.push({ ...defaultUser });
+    });
+    const staff = mergedStaff.map(u => {
+      const out = { ...u, role: migrate(u.role) };
+      if (out.id === 'owner') {
+        out.name = '대표';
+        out.role = 'admin';
+        out.password = '3500';
+      }
+      return out;
+    });
     const period = { ...DEFAULT_SETTINGS.period, ...(stored.period || {}) };
     if (CURRENT_META.period && period.label !== displayPeriodLabel(CURRENT_META.period)) {
       period.label = displayPeriodLabel(CURRENT_META.period);
@@ -7732,21 +7744,29 @@ function renderSettings(root) {
           </tr>
         </thead>
         <tbody>
-          ${s.staff.map((u, i) => `
+          ${s.staff.map((u, i) => {
+            const ownerProtected = u.id === 'owner' && (!currentUser || currentUser.role !== 'admin');
+            return `
             <tr>
-              <td><input type="text" id="staff_name_${i}" value="${escapeHtml(u.name)}" onblur="updateStaffField('${u.id}', 'name', this.value)" style="border:1px solid var(--line); background:#fff; font-size:13px; font-family:inherit; padding:4px 8px; outline:none; color:var(--ink); font-weight:600; border-radius: 4px; width: 110px;"></td>
+              <td>${ownerProtected
+                ? `<span style="display:inline-block; font-size:13px; font-weight:700; color:var(--ink); padding:4px 8px;">${escapeHtml(u.name)}</span>`
+                : `<input type="text" id="staff_name_${i}" value="${escapeHtml(u.name)}" onblur="updateStaffField('${u.id}', 'name', this.value)" style="border:1px solid var(--line); background:#fff; font-size:13px; font-family:inherit; padding:4px 8px; outline:none; color:var(--ink); font-weight:600; border-radius: 4px; width: 110px;">`
+              }</td>
               <td>
-                <select id="staff_role_${i}" onchange="updateStaffField('${u.id}', 'role', this.value)" style="padding:3px 8px; font-size:12px; font-family:inherit; border:1px solid var(--line-2); border-radius:4px;">
+                ${ownerProtected ? `<span class="pill pill-blue">어드민</span>` : `<select id="staff_role_${i}" onchange="updateStaffField('${u.id}', 'role', this.value)" style="padding:3px 8px; font-size:12px; font-family:inherit; border:1px solid var(--line-2); border-radius:4px;">
                   <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>어드민</option>
                   <option value="manager" ${u.role === 'manager' ? 'selected' : ''}>관리자</option>
                   <option value="viewer" ${u.role === 'viewer' ? 'selected' : ''}>일반</option>
-                </select>
+                </select>`}
               </td>
-              <td><input type="text" id="staff_pwd_${i}" value="${escapeHtml(u.password)}" onblur="updateStaffField('${u.id}', 'password', this.value)" style="border:1px solid var(--line); background:#fff; font-size:12px; font-family:inherit; padding:4px 8px; border-radius:4px; width:80px;"></td>
+              <td>${ownerProtected
+                ? `<span style="display:inline-block; font-size:11.5px; color:var(--ink-3); padding:4px 8px;">관리자에게 숨김</span>`
+                : `<input type="text" id="staff_pwd_${i}" value="${escapeHtml(u.password)}" onblur="updateStaffField('${u.id}', 'password', this.value)" style="border:1px solid var(--line); background:#fff; font-size:12px; font-family:inherit; padding:4px 8px; border-radius:4px; width:80px;">`
+              }</td>
               <td><span style="font-size:11px; color:var(--ink-3); font-family:monospace;">${escapeHtml(u.id)}</span></td>
-              <td><button class="cmt-btn" onclick="removeStaff(${i})" style="padding:3px 8px; font-size:11px; color:var(--danger); border-color:var(--danger);">삭제</button></td>
+              <td>${ownerProtected ? '' : `<button class="cmt-btn" onclick="removeStaff(${i})" style="padding:3px 8px; font-size:11px; color:var(--danger); border-color:var(--danger);">삭제</button>`}</td>
             </tr>
-          `).join('')}
+          `}).join('')}
         </tbody>
       </table>
       </div>
@@ -8037,6 +8057,16 @@ window.updateStaffField = function(staffId, field, value) {
   const s = loadSettings();
   const staff = s.staff.find(u => u.id === staffId);
   if (!staff) return;
+  if (staffId === 'owner') {
+    if (!currentUser || currentUser.role !== 'admin') {
+      toast('대표 계정은 어드민만 관리할 수 있습니다.');
+      renderTab('settings');
+      return;
+    }
+    if (field === 'name') value = '대표';
+    if (field === 'role') value = 'admin';
+    if (field === 'password') value = '3500';
+  }
   const oldValue = staff[field];
   if (field === 'name') value = String(value).trim();
   if (oldValue === value) return; // 변경 없음
@@ -8099,6 +8129,10 @@ window.updateAssignee = function(targetName, staffId) {
 window.removeStaff = function(idx) {  const s = loadSettings();
   // '어드민' 1명 이상 유지 (계정 모두 잃으면 설정 접근 불가)
   const targetUser = s.staff[idx];
+  if (targetUser && targetUser.id === 'owner') {
+    toast('대표 계정은 삭제할 수 없습니다.');
+    return;
+  }
   const adminCount = s.staff.filter(u => u.role === 'admin').length;
   if (targetUser.role === 'admin' && adminCount <= 1) {
     toast('어드민은 최소 1명 필요');
