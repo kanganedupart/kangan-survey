@@ -1,4 +1,4 @@
-<!-- survey_data_file: survey_data_20260715_055836.json -->
+﻿<!-- survey_data_file: survey_data_20260715_055836.json -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -1675,7 +1675,7 @@ window.openFeedbackModal = function(targetId, targetName, kind, meta) {
       <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
       ${(() => {
         if (currentIndex >= 0) {
-          return `${canEditCurrent ? `<button class="btn btn-secondary" style="color:var(--danger); border-color:var(--danger);" onclick="deleteFeedbackFromModal('${targetId}', '${String(targetName).replace(/'/g, "\\'")}', '${kind}', '${String(meta || '').replace(/'/g, "\\'")}', ${currentIndex})">삭제</button>` : ''}<button class="btn btn-secondary" style="background:#fff5f0; color:#b8540a; border-color:#b8540a; font-weight:600;" onclick="printFeedbackReport('${targetId}', '${String(targetName).replace(/'/g, "\\'")}', '${kind}', ${currentIndex})">📄 피드백 PDF</button>`;
+          return `${canEditCurrent ? `<button class="btn btn-secondary" style="color:var(--danger); border-color:var(--danger);" onclick="deleteFeedbackFromModal('${targetId}', '${String(targetName).replace(/'/g, "\\'")}', '${kind}', '${String(meta || '').replace(/'/g, "\\'")}', ${currentIndex}, this)">삭제</button>` : ''}<button class="btn btn-secondary" style="background:#fff5f0; color:#b8540a; border-color:#b8540a; font-weight:600;" onclick="printFeedbackReport('${targetId}', '${String(targetName).replace(/'/g, "\\'")}', '${kind}', ${currentIndex})">📄 피드백 PDF</button>`;
         }
         return '';
       })()}
@@ -1686,13 +1686,18 @@ window.openFeedbackModal = function(targetId, targetName, kind, meta) {
 };
 
 let __feedbackDeleteInFlight = false;
-window.deleteFeedbackFromModal = async function(targetId, targetName, kind, meta, histIdx) {
+window.deleteFeedbackFromModal = async function(targetId, targetName, kind, meta, histIdx, triggerEl) {
   if (String(window.CURRENT_PERIOD_ID || '') !== String(window.OPERATING_PERIOD_ID || '')) return;
   if (__feedbackDeleteInFlight || !requireSharedStorageReady('피드백 삭제')) return;
   const fb = getFeedbacks(targetId)[histIdx];
   if (!fb || !fb._id || !canManageFeedbackItem(fb)) return;
   if (!confirm(`${targetName} 피드백을 삭제하시겠습니까?\n\n화면에서는 삭제되고 미작성 상태로 돌아갑니다.`)) return;
   __feedbackDeleteInFlight = true;
+  const deleteBtn = triggerEl && triggerEl.tagName ? triggerEl : null;
+  if (deleteBtn) {
+    deleteBtn.dataset.deleting = '1';
+    deleteBtn.disabled = true;
+  }
   try {
     await window.deleteFeedback(fb._id, Number(fb.version || 0));
     __feedbackEditState = null;
@@ -1703,6 +1708,10 @@ window.deleteFeedbackFromModal = async function(targetId, targetName, kind, meta
     showSaveFailure(e);
   } finally {
     __feedbackDeleteInFlight = false;
+    if (deleteBtn && deleteBtn.isConnected) {
+      deleteBtn.dataset.deleting = '0';
+      deleteBtn.disabled = false;
+    }
   }
 };
 
@@ -1777,6 +1786,7 @@ window.saveFeedbackFromModal = async function(targetId, targetName, kind, meta) 
 
   if (saveBtn) {
     saveBtn.dataset.saving = '1';
+    saveBtn.disabled = true;
   }
 
   const editState = __feedbackEditState && __feedbackEditState.targetId === targetId ? { ...__feedbackEditState } : null;
@@ -1798,6 +1808,7 @@ window.saveFeedbackFromModal = async function(targetId, targetName, kind, meta) 
     if (saveBtn) {
       saveBtn.dataset.saving = '0';
       saveBtn.textContent = editState ? '수정 저장' : '저장';
+      saveBtn.disabled = false;
     }
     showSaveFailure(e);
     return;
@@ -3386,7 +3397,6 @@ async function dlFirebaseResponsesAsXlsx(responses) {
   const period = (D.meta.period || '현재').replace(/[^가-힣A-Za-z0-9]/g, '_');
   const fname = `학생응답_원본_${period}_${new Date().toISOString().slice(0,10)}.xlsx`;
   XLSX.writeFile(wb, fname);
-  toast(`Firebase 응답 ${responses.length}건 다운로드 완료`);
 }
 
 window.dlDashboard = function() {
@@ -8598,17 +8608,45 @@ function escapeHtml(s) {
 function showLoginScreen() {
   const existing = document.getElementById('loginOverlay');
   if (existing) return existing;
+  const loginStaff = (() => {
+    const byId = new Map();
+    const add = item => {
+      if (!item || item.active === false) return;
+      const id = String(item.id || item.loginId || '').trim();
+      const name = String(item.name || id).trim();
+      if (!id || !name) return;
+      byId.set(id, { id, name });
+    };
+    try {
+      (DEFAULT_SETTINGS.staff || []).forEach(add);
+      const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+      (stored.staff || []).forEach(add);
+    } catch (e) {}
+    [
+      { id: 'owner', name: '대표' },
+      { id: 'park', name: '박승민' },
+      { id: 'lee', name: '이대성' },
+      { id: 'parksy', name: '박상언' },
+      { id: 'kim_jiyu', name: '김지유' },
+      { id: 'kang_wonhwi', name: '강원휘' },
+    ].forEach(add);
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  })();
+  const loginButtons = loginStaff.map(item => `
+    <button type="button" class="login-staff-btn" data-login-id="${escapeHtml(item.id)}" onclick="selectLoginStaff('${escapeHtml(item.id)}', this)" style="padding:8px 10px; border:1px solid var(--line-2); background:#fff; border-radius:6px; font-size:12.5px; font-weight:600; color:var(--ink-2); cursor:pointer; font-family:inherit; text-align:center;">${escapeHtml(item.name)}</button>
+  `).join('');
   const overlay = document.createElement('div');
   overlay.id = 'loginOverlay';
   overlay.style.cssText = 'position:fixed; inset:0; background:var(--bg); z-index:9999; display:flex; align-items:center; justify-content:center; padding:24px;';
   overlay.innerHTML = `
-    <div style="max-width: 380px; width: 100%; background: var(--card); border-radius: 12px; padding: 32px; box-shadow: var(--shadow-lg); border: 1px solid var(--line);">
+    <div style="max-width: 420px; width: 100%; background: var(--card); border-radius: 12px; padding: 32px; box-shadow: var(--shadow-lg); border: 1px solid var(--line);">
       <div style="text-align: center; margin-bottom: 22px;">
         <div style="font-size: 19px; font-weight: 800; letter-spacing: -0.025em; color: var(--ink);">강안교육 만족도 조사</div>
         <div style="font-size: 12.5px; color: var(--ink-3); margin-top: 4px;">관리자 콘솔 로그인</div>
       </div>
-      <label style="display:block; font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px;">로그인 ID</label>
-      <input type="text" id="loginUser" autocomplete="username" style="width: 100%; padding: 10px 12px; font-size: 13.5px; font-family: inherit; border: 1px solid var(--line-2); border-radius: 6px; margin-bottom: 14px;">
+      <label style="display:block; font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px;">직원 선택</label>
+      <div id="loginStaffList" style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:7px; margin-bottom:14px; max-height:210px; overflow:auto;">${loginButtons}</div>
+      <input type="hidden" id="loginUser" autocomplete="username">
       <label style="display:block; font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px;">비밀번호</label>
       <input type="password" id="loginPwd" placeholder="비밀번호" style="width: 100%; padding: 10px 12px; font-size: 13.5px; font-family: inherit; border: 1px solid var(--line-2); border-radius: 6px; margin-bottom: 6px;" onkeypress="if(event.key==='Enter') doLogin()">
       <div id="loginErr" style="font-size: 11.5px; color: var(--danger); min-height: 18px; margin-bottom: 8px;"></div>
@@ -8618,13 +8656,29 @@ function showLoginScreen() {
   document.body.appendChild(overlay);
   return overlay;
 }
+window.selectLoginStaff = function(loginId, btn) {
+  const input = document.getElementById('loginUser');
+  if (input) input.value = loginId;
+  document.querySelectorAll('.login-staff-btn').forEach(item => {
+    item.style.background = '#fff';
+    item.style.color = 'var(--ink-2)';
+    item.style.borderColor = 'var(--line-2)';
+  });
+  if (btn) {
+    btn.style.background = 'var(--accent)';
+    btn.style.color = '#fff';
+    btn.style.borderColor = 'var(--accent)';
+  }
+  const pwd = document.getElementById('loginPwd');
+  if (pwd) pwd.focus();
+};
 window.doLogin = async function() {
   const userId = document.getElementById('loginUser').value.trim();
   const pwd = document.getElementById('loginPwd').value;
   const err = document.getElementById('loginErr');
   if (!window.__firebaseLoginReady || !window.__firebaseLogin) return;
   if (!userId || !pwd) {
-    err.textContent = '로그인 ID와 비밀번호를 입력해 주세요.';
+    err.textContent = '직원을 선택하고 비밀번호를 입력해 주세요.';
     return;
   }
   const btn = document.getElementById('loginBtn');
@@ -8679,7 +8733,6 @@ window.__startAuthenticatedApp = function(profile) {
       if (result && result.added > 0) {
         // 새 분기 추가됨 → 사이드바 재렌더 (현재 탭은 유지)
         renderPeriodSelector();
-        toast(`Firebase에서 ${result.added}개 분기 자동 로드됨`);
       }
       // 자동 새로고침 시작 (30초 주기)
       window.__autoRefreshLastResponseCount = result ? result.total : 0;
@@ -10065,7 +10118,14 @@ async function ensureCredentialMigration(profile) {
   const normalizedRole = normalizeClientRole(profile.role);
   if (!normalizedRole) throw new Error('등록되지 않은 직원 권한입니다. 관리자 확인이 필요합니다.');
   profile.role = normalizedRole;
-  if (normalizedRole === 'admin') {
+  const readMigrationStatuses = async () => Promise.all([
+    httpsCallable(functions, 'getSecurityMigrationStatus')({}),
+    httpsCallable(functions, 'getRoleMigrationV2Status')({}),
+  ]);
+  let [securityStatus, roleStatus] = await readMigrationStatuses();
+  let securityComplete = Boolean(securityStatus.data && securityStatus.data.status === 'complete');
+  let roleComplete = Boolean(roleStatus.data && roleStatus.data.status === 'complete');
+  if (normalizedRole === 'admin' && (!securityComplete || !roleComplete)) {
     for (let attempt = 0; attempt < 60; attempt++) {
       const result = await httpsCallable(functions, 'adminMigrateLegacyStaff')({});
       const status = result.data && result.data.status;
@@ -10080,13 +10140,11 @@ async function ensureCredentialMigration(profile) {
       if (status !== 'running') throw new Error('직원 권한 보정 상태를 확인할 수 없습니다.');
       await new Promise(resolve => setTimeout(resolve, 500));
     }
+    [securityStatus, roleStatus] = await readMigrationStatuses();
+    securityComplete = Boolean(securityStatus.data && securityStatus.data.status === 'complete');
+    roleComplete = Boolean(roleStatus.data && roleStatus.data.status === 'complete');
   }
-  const [securityStatus, roleStatus] = await Promise.all([
-    httpsCallable(functions, 'getSecurityMigrationStatus')({}),
-    httpsCallable(functions, 'getRoleMigrationV2Status')({}),
-  ]);
-  if (!securityStatus.data || securityStatus.data.status !== 'complete'
-    || !roleStatus.data || roleStatus.data.status !== 'complete') {
+  if (!securityComplete || !roleComplete) {
     throw new Error('직원 계정 보안 이전이 완료되지 않았습니다. 대표 계정으로 먼저 로그인해 주세요.');
   }
   sharedState.credentialsPurged = true;
