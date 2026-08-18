@@ -1,4 +1,4 @@
-<!-- survey_data_file: survey_data_20260818_131259.json -->
+<!-- survey_data_file: survey_data_20260818_170641.json -->
 ﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -2386,9 +2386,9 @@ window.printEvaluationReport = function(targetId, targetName, kind) {
   </div>
   ${scoreSummary ? `<div class="summary-box">📊 ${escapeHtml(scoreSummary)}</div>` : ''}
   ${scoreSection ? `<h2 class="sec">평가 항목별 점수 (현재 분기)</h2>${scoreSection}` : ''}
-  ${feedbackTeacherSection}
   ${selectedCommentSection}
   ${classSection || ''}
+  ${feedbackTeacherSection}
   <div class="footer">
     <span>강안교육 만족도 조사 시스템 · ${escapeHtml(reportPeriodLabel)}</span>
     <span>학생 평가 결과 정리</span>
@@ -3442,6 +3442,16 @@ function shortPeriodLabel(label) {
     .replace(/\s*정규반/g, '')
     .trim();
 }
+function itemBarPeriodLabel(period) {
+  const label = shortPeriodLabel(period && period.label || '');
+  return `${label}${period && period.isCurrent ? ' ★' : ''}`;
+}
+function itemBarPeriodStyle(index, total, isCurrent) {
+  if (isCurrent) return { color: 'var(--good)', opacity: '1', width: '34px', legend: '현재 회차' };
+  const distance = Math.max(1, total - 1 - index);
+  if (distance === 1) return { color: '#aebdc5', opacity: '0.78', width: '30px', legend: '직전회차' };
+  return { color: '#d9e1e5', opacity: '0.62', width: '28px', legend: '직전 2회차' };
+}
 function teacherPeriodSnapshots(teacherName, limit) {
   const snapshots = PERIODS.map(p => {
     const survey = window.SURVEYS && window.SURVEYS[p.id];
@@ -3545,6 +3555,54 @@ function haksaPeriodSnapshots(name, limit) {
   return snapshots.slice(-count);
 }
 
+function homeroomHistory(name, currentScore) {
+  return PERIODS.map(p => {
+    const survey = window.SURVEYS && window.SURVEYS[p.id];
+    const item = survey && Array.isArray(survey.homerooms)
+      ? survey.homerooms.find(h => h.teacher === name)
+      : null;
+    if (item && typeof item.overall === 'number') return Math.round(item.overall * 100) / 100;
+    if (p.id === window.CURRENT_PERIOD_ID && typeof currentScore === 'number') return Math.round(currentScore * 100) / 100;
+    return null;
+  });
+}
+
+function haksaHistory(name, currentScore) {
+  return PERIODS.map(p => {
+    const survey = window.SURVEYS && window.SURVEYS[p.id];
+    const item = survey && survey.haksa && Array.isArray(survey.haksa.list)
+      ? survey.haksa.list.find(h => h.name === name)
+      : null;
+    if (item && typeof item.overall === 'number') return Math.round(item.overall * 100) / 100;
+    if (p.id === window.CURRENT_PERIOD_ID && typeof currentScore === 'number') return Math.round(currentScore * 100) / 100;
+    return null;
+  });
+}
+
+function homeroomPeriodDetails(name) {
+  const out = {};
+  PERIODS.forEach((p, i) => {
+    const survey = window.SURVEYS && window.SURVEYS[p.id];
+    const item = survey && Array.isArray(survey.homerooms)
+      ? survey.homerooms.find(h => h.teacher === name)
+      : null;
+    if (item) out[i] = item.scores || { 성적관리: item['성적관리'], 정서관리: item['정서관리'] };
+  });
+  return out;
+}
+
+function haksaPeriodDetails(name) {
+  const out = {};
+  PERIODS.forEach((p, i) => {
+    const survey = window.SURVEYS && window.SURVEYS[p.id];
+    const item = survey && survey.haksa && Array.isArray(survey.haksa.list)
+      ? survey.haksa.list.find(h => h.name === name)
+      : null;
+    if (item) out[i] = item.scores || {};
+  });
+  return out;
+}
+
 function renderHaksaItemVerticalBars(h) {
   const keys = (D.haksa && D.haksa.questions || []).filter(q => h.scores && h.scores[q] != null);
   if (!keys.length) return '<div style="color:var(--ink-3); font-size:13px; padding:14px;">항목별 점수가 없습니다.</div>';
@@ -3555,8 +3613,9 @@ function renderHaksaItemVerticalBars(h) {
       <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
         <div style="font-size:11.5px; color:var(--ink-3);">최근 회차 문항별 점수입니다. 현재 회차는 진하게, 이전 회차는 연하게 표시합니다.</div>
         <div style="display:flex; gap:10px; align-items:center; font-size:10.5px; color:var(--ink-3);">
+          <span><i style="display:inline-block; width:10px; height:10px; background:#d9e1e5; border-radius:2px; vertical-align:-1px; margin-right:4px;"></i>직전 2회차</span>
+          <span><i style="display:inline-block; width:10px; height:10px; background:#aebdc5; border-radius:2px; vertical-align:-1px; margin-right:4px;"></i>직전회차</span>
           <span><i style="display:inline-block; width:10px; height:10px; background:var(--good); border-radius:2px; vertical-align:-1px; margin-right:4px;"></i>현재 회차</span>
-          <span><i style="display:inline-block; width:10px; height:10px; background:#c9d3d9; border-radius:2px; vertical-align:-1px; margin-right:4px;"></i>이전 회차</span>
         </div>
       </div>
       <div style="display:grid; grid-template-columns: repeat(${Math.max(keys.length, 1)}, minmax(112px, 1fr)); gap:12px; padding:14px 12px 12px; background:#fff; border:1px solid var(--line); border-radius:6px; overflow-x:auto;">
@@ -3567,7 +3626,7 @@ function renderHaksaItemVerticalBars(h) {
           return `
             <div style="min-width:112px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:8px;">
               <div style="height:184px; width:100%; display:flex; align-items:end; justify-content:center; gap:6px;">
-                ${snapshots.map(s => {
+                ${snapshots.map((s, periodIndex) => {
                   const scores = s.item && s.item.scores ? s.item.scores : {};
                   const raw = scores[key];
                   if (raw == null || !Number.isFinite(Number(raw))) {
@@ -3575,11 +3634,13 @@ function renderHaksaItemVerticalBars(h) {
                   }
                   const value = Number(raw);
                   const isCurrent = currentPeriod && s.period.id === currentPeriod.id;
+                  const barStyle = itemBarPeriodStyle(periodIndex, snapshots.length, isCurrent);
                   const height = Math.max(14, Math.min(168, pct(value) * 1.68));
                   return `
                     <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px;">
                       <div style="height:17px; font-size:12px; font-weight:${isCurrent ? '900' : '800'}; color:var(--ink);">${value.toFixed(2)}</div>
-                      <div title="${escapeHtml(s.period.label)} ${value.toFixed(2)}" style="width:${isCurrent ? '34px' : '28px'}; height:${height}px; background:${isCurrent ? 'var(--good)' : '#c9d3d9'}; opacity:${isCurrent ? '1' : '0.48'}; border-radius:5px 5px 0 0;"></div>
+                      <div title="${escapeHtml(s.period.label)} ${value.toFixed(2)}" style="width:${barStyle.width}; height:${height}px; background:${barStyle.color}; opacity:${barStyle.opacity}; border-radius:5px 5px 0 0;"></div>
+                      <div data-period-bar-label="${escapeHtml(s.period.id)}" title="${escapeHtml(s.period.label)}" style="min-height:16px; font-size:9.5px; white-space:nowrap; font-weight:${isCurrent ? '900' : '700'}; color:${isCurrent ? 'var(--good)' : 'var(--ink-3)'};">${escapeHtml(itemBarPeriodLabel(s.period))}</div>
                     </div>
                   `;
                 }).join('')}
@@ -4768,7 +4829,7 @@ window.openHomeroomModal = function(name) {
   const targetId = 'homeroom_' + h.teacher;
   const safeName = h.teacher.replace(/[^a-zA-Z가-힣0-9]/g, '_');
   // 분기 추이 시뮬 (강사와 동일 방식)
-  const history = generateHistory(h.overall);
+  const history = homeroomHistory(h.teacher, h.overall);
 
   showModal(`
     <div class="modal-head">
@@ -4815,7 +4876,7 @@ window.openHomeroomModal = function(name) {
             ${periodPresetButtons(h.teacher)}
           </div>
           <div id="trendChartBox_${safeName}">
-            ${renderSelectedPeriodChartGeneric(history, OVERALL_HISTORY, PERIODS, getPeriodSelection(h.teacher), h.teacher, ['성적관리', '정서관리'], h)}
+            ${renderSelectedPeriodChartGeneric(history, OVERALL_HISTORY, PERIODS, getPeriodSelection(h.teacher), h.teacher, ['성적관리', '정서관리'], { ...h, _periodDetailsByIndex: homeroomPeriodDetails(h.teacher) })}
           </div>
         </div>
       </details>
@@ -4867,7 +4928,7 @@ window.openHaksaModal = function(name) {
   const haksaDiffExact = pdfDisplayDiff(haksaOverallExact, haksaAvgExact);
   const [pillText, pillCls] = gradeText(h.overall);
   const targetId = 'haksa_' + h.name;
-  const history = genHistory(h.name, h.overall);
+  const history = haksaHistory(h.name, h.overall);
 
   showModal(`
     <div class="modal-head">
@@ -4917,7 +4978,7 @@ window.openHaksaModal = function(name) {
             ${(() => {
               const haksaItems = D.haksa.questions.filter(q => h.scores[q] != null);
               const haksaObj = { overall: h.overall, ...h.scores };
-              return renderSelectedPeriodChartGeneric(history, OVERALL_HISTORY, PERIODS, getPeriodSelection(h.name), h.name, haksaItems, haksaObj);
+              return renderSelectedPeriodChartGeneric(history, OVERALL_HISTORY, PERIODS, getPeriodSelection(h.name), h.name, haksaItems, { ...haksaObj, _periodDetailsByIndex: haksaPeriodDetails(h.name) });
             })()}
           </div>
         </div>
@@ -5446,15 +5507,15 @@ function refreshPeriodSelector(teacherName) {
       // 담임 찾기
       const homeroom = D.homerooms && D.homerooms.find(x => x.teacher === teacherName);
       if (homeroom) {
-        const history = generateHistory(homeroom.overall);
-        chartBox.innerHTML = renderSelectedPeriodChartGeneric(history, OVERALL_HISTORY, PERIODS, sel, teacherName, ['성적관리', '정서관리'], homeroom);
+        const history = homeroomHistory(homeroom.teacher, homeroom.overall);
+        chartBox.innerHTML = renderSelectedPeriodChartGeneric(history, OVERALL_HISTORY, PERIODS, sel, teacherName, ['성적관리', '정서관리'], { ...homeroom, _periodDetailsByIndex: homeroomPeriodDetails(homeroom.teacher) });
       } else {
         // 학사 찾기
         const haksa = D.haksa && D.haksa.list && D.haksa.list.find(x => x.name === teacherName);
         if (haksa) {
-          const history = generateHistory(haksa.overall);
-          const haksaItems = ['아침식사', '기상관리', '셔틀정숙', '휴대폰관리', '학사복귀후관리', '청소빨래'].filter(k => haksa[k] !== undefined);
-          chartBox.innerHTML = renderSelectedPeriodChartGeneric(history, OVERALL_HISTORY, PERIODS, sel, teacherName, haksaItems, haksa);
+          const history = haksaHistory(haksa.name, haksa.overall);
+          const haksaItems = (D.haksa.questions || []).filter(k => haksa.scores && haksa.scores[k] !== undefined);
+          chartBox.innerHTML = renderSelectedPeriodChartGeneric(history, OVERALL_HISTORY, PERIODS, sel, teacherName, haksaItems, { ...haksa.scores, overall: haksa.overall, _periodDetailsByIndex: haksaPeriodDetails(haksa.name) });
         } else {
           // 부서 (바른식당·교무·매일깨기·한국사) 찾기 - window._deptModalContext
           const deptCtx = window._deptModalContext && window._deptModalContext[teacherName];
@@ -6377,7 +6438,14 @@ function renderEduDeptItemBars(secName, details) {
   const snapshots = deptPeriodSnapshots(secName, 3);
   const currentPeriod = snapshots[snapshots.length - 1] && snapshots[snapshots.length - 1].period;
   return `
-    <div style="font-size:12.5px; color:var(--ink-3); margin-bottom: 14px;">최근 회차 문항별 점수입니다. 현재 회차는 진하게, 이전 회차는 연하게 표시합니다.</div>
+    <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+      <div style="font-size:12.5px; color:var(--ink-3);">최근 회차 문항별 점수입니다. 막대 아래 회차명을 함께 표시합니다.</div>
+      <div style="display:flex; gap:10px; align-items:center; font-size:10.5px; color:var(--ink-3);">
+        <span><i style="display:inline-block; width:10px; height:10px; background:#d9e1e5; border-radius:2px; vertical-align:-1px; margin-right:4px;"></i>직전 2회차</span>
+        <span><i style="display:inline-block; width:10px; height:10px; background:#aebdc5; border-radius:2px; vertical-align:-1px; margin-right:4px;"></i>직전회차</span>
+        <span><i style="display:inline-block; width:10px; height:10px; background:var(--accent); border-radius:2px; vertical-align:-1px; margin-right:4px;"></i>현재 회차</span>
+      </div>
+    </div>
     <div style="display:grid; grid-template-columns: repeat(${Math.max(entries.length, 1)}, minmax(112px, 1fr)); gap:12px; padding:14px 12px 12px; background:#fff; border:1px solid var(--line); border-radius:6px; overflow-x:auto;">
       ${entries.map(([key]) => {
         const qNo = (String(key).match(/^\s*(\d+)\)/) || [null, ''])[1];
@@ -6385,18 +6453,21 @@ function renderEduDeptItemBars(secName, details) {
         return `
           <div style="min-width:112px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:8px;">
             <div style="height:184px; width:100%; display:flex; align-items:end; justify-content:center; gap:6px;">
-              ${snapshots.map(s => {
+              ${snapshots.map((s, periodIndex) => {
                 const raw = detailValueByQuestionKey(s.details, key);
                 if (raw == null || !Number.isFinite(Number(raw))) {
                   return `<div title="${escapeHtml(s.period.label)} 값 없음" style="width:22px; height:1px;"></div>`;
                 }
                 const value = Number(raw);
                 const isCurrent = currentPeriod && s.period.id === currentPeriod.id;
+                const baseStyle = itemBarPeriodStyle(periodIndex, snapshots.length, isCurrent);
+                const barStyle = isCurrent ? { ...baseStyle, color: 'var(--accent)' } : baseStyle;
                 const height = Math.max(14, Math.min(168, pct(value) * 1.68));
                 return `
                   <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px;">
                     <div style="height:17px; font-size:12px; font-weight:${isCurrent ? '900' : '800'}; color:var(--ink);">${value.toFixed(2)}</div>
-                    <div title="${escapeHtml(s.period.label)} ${value.toFixed(2)}" style="width:${isCurrent ? '34px' : '28px'}; height:${height}px; background:${isCurrent ? 'var(--accent)' : '#c9d3d9'}; opacity:${isCurrent ? '1' : '0.48'}; border-radius:5px 5px 0 0;"></div>
+                    <div title="${escapeHtml(s.period.label)} ${value.toFixed(2)}" style="width:${barStyle.width}; height:${height}px; background:${barStyle.color}; opacity:${barStyle.opacity}; border-radius:5px 5px 0 0;"></div>
+                    <div data-period-bar-label="${escapeHtml(s.period.id)}" title="${escapeHtml(s.period.label)}" style="min-height:16px; font-size:9.5px; white-space:nowrap; font-weight:${isCurrent ? '900' : '700'}; color:${isCurrent ? 'var(--accent)' : 'var(--ink-3)'};">${escapeHtml(itemBarPeriodLabel(s.period))}</div>
                   </div>
                 `;
               }).join('')}
@@ -6406,9 +6477,6 @@ function renderEduDeptItemBars(secName, details) {
           </div>
         `;
       }).join('')}
-    </div>
-    <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-top:8px; font-size:10.5px; color:var(--ink-3);">
-      ${snapshots.map(s => `<span style="font-weight:800; color:${currentPeriod && s.period.id === currentPeriod.id ? 'var(--accent)' : 'var(--ink)'};">${escapeHtml(shortPeriodLabel(s.period.label))}${currentPeriod && s.period.id === currentPeriod.id ? ' ★' : ''}</span>`).join('')}
     </div>
   `;
 }
@@ -8149,6 +8217,13 @@ function renderSettings(root) {
 
     <div class="alert-info" style="font-size: 12px; padding: 10px 14px; margin-bottom: 14px;">
       <b>저장 안내:</b> 직원·담당은 변경 즉시 저장. 회차·기준·매뉴얼은 각 카드의 <b>[이 영역만 저장]</b> 버튼으로 따로 저장됩니다.
+    </div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:10px 14px; margin-bottom:14px; background:var(--bg); border:1px solid var(--line); border-radius:7px; font-size:12px; color:var(--ink-2);">
+      <b style="color:var(--ink);">현재 로그인</b>
+      <span>${escapeHtml(currentUser && currentUser.name || '확인 중')}</span>
+      <span class="pill pill-blue">${escapeHtml(roleLabel(currentUser && currentUser.role || 'viewer'))}</span>
+      <span style="color:var(--ink-3);">로그인 ID: ${escapeHtml(currentUser && (currentUser.loginId || currentUser.id) || '-')}</span>
+      <span style="margin-left:auto; color:var(--ink-3);">전체 계정 ${s.staff.length}명 · 이름/권한/담당은 <b>직원·담당</b>에서 확인</span>
     </div>
 
     <!-- 탭 네비게이션 -->
