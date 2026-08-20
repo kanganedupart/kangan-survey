@@ -1,4 +1,4 @@
-<!-- survey_data_file: survey_data_20260819_184547.json -->
+<!-- survey_data_file: survey_data_20260820_131825.json -->
 ﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -3501,7 +3501,7 @@ function renderTeacherItemVerticalBars(teacherName, currentScores, itemKeys) {
           <span><i style="display:inline-block; width:10px; height:10px; background:#b9d88f; border-radius:2px; vertical-align:-1px; margin-right:4px;"></i>평균 미만</span>
         </div>
       </div>
-      <div style="min-height:314px; display:flex; align-items:stretch; gap:14px; padding:12px 10px 10px; background:#fff; border:1px solid var(--line); border-radius:6px; overflow-x:auto;">
+      <div style="min-height:342px; display:flex; align-items:stretch; gap:14px; padding:18px 10px 10px; background:#fff; border:1px solid var(--line); border-radius:6px; overflow-x:auto; overflow-y:visible;">
         ${values.map(item => {
           const height = Math.max(16, Math.min(190, pct(item.value) * 1.9));
           const avgHeight = Math.max(16, Math.min(190, pct(item.subjectAvg) * 1.9));
@@ -3509,13 +3509,13 @@ function renderTeacherItemVerticalBars(teacherName, currentScores, itemKeys) {
           const color = isBelowSubject ? '#b9d88f' : '#8fc6df';
           return `
             <div title="${escapeHtml(item.qText)} 점수 ${item.value.toFixed(2)} / ${escapeHtml(subject)} 평균 ${item.subjectAvg.toFixed(2)}" style="flex:1; min-width:118px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:7px; ${item.isFeedback ? 'opacity:0.75;' : ''}">
-              <div style="height:224px; width:100%; display:flex; align-items:flex-end; justify-content:center; gap:8px;">
+              <div data-chart-area="teacher-items" style="height:246px; width:100%; display:flex; align-items:flex-end; justify-content:center; gap:8px; overflow:visible; padding-top:18px;">
                 <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px;">
-                  <div style="height:30px; font-size:10.5px; font-weight:800; color:var(--ink-3); text-align:center; line-height:1.15;">평균<br>${item.subjectAvg.toFixed(2)}</div>
+                  <div data-score-label="subject-average" style="height:30px; font-size:10.5px; font-weight:800; color:var(--ink-3); text-align:center; line-height:1.15;">평균<br>${item.subjectAvg.toFixed(2)}</div>
                   <div style="width:34px; height:${avgHeight}px; background:#d8e1e6; opacity:0.82; border-radius:5px 5px 0 0; border:1px solid rgba(0,0,0,0.04);"></div>
                 </div>
                 <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px;">
-                  <div style="height:30px; font-size:12px; font-weight:900; color:var(--ink); text-align:center; line-height:1.15;">점수<br>${item.value.toFixed(2)}</div>
+                  <div data-score-label="teacher-score" style="height:30px; font-size:12px; font-weight:900; color:var(--ink); text-align:center; line-height:1.15;">점수<br>${item.value.toFixed(2)}</div>
                   <div style="width:38px; height:${height}px; background:${color}; border-radius:5px 5px 0 0; border:1px solid rgba(0,0,0,0.04);"></div>
                 </div>
               </div>
@@ -3631,7 +3631,7 @@ function renderHaksaItemVerticalBars(h) {
           const qText = String(qTextFull).replace(/^\s*\d+\)\s*/, '');
           return `
             <div style="min-width:112px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:8px;">
-              <div style="height:184px; width:100%; display:flex; align-items:end; justify-content:center; gap:6px;">
+              <div data-chart-area="haksa-items" style="height:224px; width:100%; display:flex; align-items:end; justify-content:center; gap:6px; overflow:visible; padding-top:10px;">
                 ${snapshots.map((s, periodIndex) => {
                   const scores = s.item && s.item.scores ? s.item.scores : {};
                   const raw = scores[key];
@@ -3644,7 +3644,7 @@ function renderHaksaItemVerticalBars(h) {
                   const height = Math.max(14, Math.min(168, pct(value) * 1.68));
                   return `
                     <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px;">
-                      <div style="height:17px; font-size:12px; font-weight:${isCurrent ? '900' : '800'}; color:var(--ink);">${value.toFixed(2)}</div>
+                      <div data-score-label="haksa-score" style="height:17px; font-size:12px; font-weight:${isCurrent ? '900' : '800'}; color:var(--ink);">${value.toFixed(2)}</div>
                       <div title="${escapeHtml(s.period.label)} ${value.toFixed(2)}" style="width:${barStyle.width}; height:${height}px; background:${barStyle.color}; opacity:${barStyle.opacity}; border-radius:5px 5px 0 0;"></div>
                       <div data-period-bar-label="${escapeHtml(s.period.id)}" title="${escapeHtml(s.period.label)}" style="min-height:16px; font-size:9.5px; white-space:nowrap; font-weight:${isCurrent ? '900' : '700'}; color:${isCurrent ? 'var(--good)' : 'var(--ink-3)'};">${escapeHtml(itemBarPeriodLabel(s.period))}</div>
                     </div>
@@ -6458,7 +6458,7 @@ function renderEduDeptItemBars(secName, details) {
         const qText = String(key).replace(/^\s*\d+\)\s*/, '');
         return `
           <div style="min-width:112px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:8px;">
-            <div style="height:184px; width:100%; display:flex; align-items:end; justify-content:center; gap:6px;">
+            <div data-chart-area="department-items" style="height:224px; width:100%; display:flex; align-items:end; justify-content:center; gap:6px; overflow:visible; padding-top:10px;">
               ${snapshots.map((s, periodIndex) => {
                 const raw = detailValueByQuestionKey(s.details, key);
                 if (raw == null || !Number.isFinite(Number(raw))) {
@@ -6471,7 +6471,7 @@ function renderEduDeptItemBars(secName, details) {
                 const height = Math.max(14, Math.min(168, pct(value) * 1.68));
                 return `
                   <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px;">
-                    <div style="height:17px; font-size:12px; font-weight:${isCurrent ? '900' : '800'}; color:var(--ink);">${value.toFixed(2)}</div>
+                    <div data-score-label="department-score" style="height:17px; font-size:12px; font-weight:${isCurrent ? '900' : '800'}; color:var(--ink);">${value.toFixed(2)}</div>
                     <div title="${escapeHtml(s.period.label)} ${value.toFixed(2)}" style="width:${barStyle.width}; height:${height}px; background:${barStyle.color}; opacity:${barStyle.opacity}; border-radius:5px 5px 0 0;"></div>
                     <div data-period-bar-label="${escapeHtml(s.period.id)}" title="${escapeHtml(s.period.label)}" style="min-height:16px; font-size:9.5px; white-space:nowrap; font-weight:${isCurrent ? '900' : '700'}; color:${isCurrent ? 'var(--accent)' : 'var(--ink-3)'};">${escapeHtml(itemBarPeriodLabel(s.period))}</div>
                   </div>
